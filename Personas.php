@@ -1,4 +1,8 @@
- <!-- Lista de Personas -->
+<?php 
+include 'componentes/Header.php'; 
+include 'componentes/Nav.php'; 
+?>
+<!-- Lista de Personas -->
         <section id="attendees" class="page hidden">
             <h1>Lista de Personas</h1>
             <p>Aquí puedes ver el estado de asistencia de todos los usuarios registrados en el sistema.</p>
@@ -26,3 +30,7 @@
                 </table>
             </div>
         </section>
+<?php
+ include 'componentes/Footer.php'; 
+ ?>
+    

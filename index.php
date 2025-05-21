@@ -1,4 +1,7 @@
-
+<?php 
+include 'componentes/Header.php'; 
+include 'componentes/Nav.php'; 
+?>
 
 
     <main class="container">
@@ -51,7 +54,9 @@
         </section>
 
      
-
+<?php
+ include 'componentes/Footer.php'; 
+ ?>
        
         
                 

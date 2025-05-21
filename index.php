@@ -1,8 +1,11 @@
-<?php 
-include 'componentes/Header.php'; 
-include 'componentes/Nav.php'; 
-?>
+<?php
+// Incluir configuración de Supabase
+require_once 'config/supabase.php';
 
+// Incluir componentes
+include_once 'Componentes/Header.php';
+include_once 'Componentes/Nav.php';
+?>
 
     <main class="container">
         <!-- Página de Inicio -->
@@ -53,14 +56,60 @@ include 'componentes/Nav.php';
             </div>
         </section>
 
-     
-<?php
- include 'componentes/Footer.php'; 
- ?>
-       
+        <!-- Incluir las secciones -->
+        <?php include_once 'Escaneo.php'; ?>
+        <?php include_once 'Personas.php'; ?>
         
+        <!-- Panel de Administrador -->
+        <section id="admin" class="page hidden">
+            <h1>Panel de Administrador</h1>
+            
+            <div class="dashboard">
+                <div class="sidebar">
+                    <ul class="sidebar-menu">
+                        <li>
+                            <a href="#" class="admin-tab active" data-tab="overview">
+                                <i class="fas fa-home"></i> Resumen
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="admin-tab" data-tab="attendance-history">
+                                <i class="fas fa-history"></i> Historial
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="admin-tab" data-tab="users">
+                                <i class="fas fa-users"></i> Usuarios
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="admin-tab" data-tab="export">
+                                <i class="fas fa-file-export"></i> Exportar Datos
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="admin-tab" data-tab="settings">
+                                <i class="fas fa-cog"></i> Configuración
+                            </a>
+                        </li>
+                    </ul>
+                </div>
                 
+                <?php include_once 'Resumen.php'; ?>
+                <?php include_once 'Historial.php'; ?>
+                <?php include_once 'Usuarios.php'; ?>
+                <?php include_once 'Exportar.php'; ?>
+                <?php include_once 'Configuracion.php'; ?>
                 
-                    
-                  
-                 
+            </div>
+        </section>
+    </main>
+    
+<?php include_once 'Componentes/Footer.php'; ?>
+
+<!-- Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

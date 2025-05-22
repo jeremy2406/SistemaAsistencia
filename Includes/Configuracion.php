@@ -10,8 +10,7 @@ class Configuracion {
      */
     public static function obtenerConfiguracion() {
         $endpoint = '/rest/v1/configuracion?select=*&limit=1';
-        $resultado = SupabaseConfig::request($endpoint);
-        
+        $resultado = supabase_request(ltrim($endpoint, '/')); 
         return !empty($resultado) ? $resultado[0] : null;
     }
     
@@ -44,7 +43,7 @@ class Configuracion {
         
         // Actualizar configuración
         $endpoint = '/rest/v1/configuracion?id=eq.' . $config['id'];
-        $resultado = SupabaseConfig::request($endpoint, 'PATCH', $datos);
+        $resultado = supabase_request(ltrim($endpoint, '/'));
         
         if (isset($resultado['error'])) {
             return [

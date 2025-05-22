@@ -1,6 +1,6 @@
 <?php
 // Incluir configuración de Supabase
-require_once 'config/supabase.php';
+require_once 'Includes/Config.php';
 
 // Incluir componentes
 include_once 'Componentes/Header.php';

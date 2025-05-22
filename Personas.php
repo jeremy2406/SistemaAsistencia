@@ -1,7 +1,4 @@
-<?php 
-include 'componentes/Header.php'; 
-include 'componentes/Nav.php'; 
-?>
+
 <!-- Lista de Personas -->
         <section id="attendees" class="page hidden">
             <h1>Lista de Personas</h1>
@@ -30,7 +27,5 @@ include 'componentes/Nav.php';
                 </table>
             </div>
         </section>
-<?php
- include 'componentes/Footer.php'; 
- ?>
+
     

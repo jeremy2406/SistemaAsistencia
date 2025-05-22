@@ -1,538 +1,918 @@
-/**
- * Sistema de Asistencia QR
- * Script principal
- */
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Variables globales
-    const html5QrCode = new Html5Qrcode("reader");
-    let isScanning = false;
+// Sistema de Asistencia QR - Funciones Principales
+$(document).ready(function() {
+    console.log('Sistema de Asistencia QR iniciado');
     
     // Inicializar componentes
-    initNavigation();
-    initAdminTabs();
-    initQRScanner();
-    initUsersTable();
-    initAttendanceHistory();
-    initExportForm();
+    initializeNavigation();
+    initializeScanner();
+    initializeUserManagement();
+    initializeAdminPanel();
+    
+    // Cargar datos iniciales
     loadDashboardStats();
-    
-    /**
-     * Navegación principal
-     */
-    function initNavigation() {
-        // Navegación principal
-        document.querySelectorAll('.nav-link, .scan-btn').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                const target = this.getAttribute('data-target');
-                
-                // Ocultar todas las secciones
-                document.querySelectorAll('.page').forEach(page => {
-                    page.classList.add('hidden');
-                });
-                
-                // Mostrar la sección seleccionada
-                document.getElementById(target).classList.remove('hidden');
-                
-                // Si se selecciona la sección de administrador, cargar datos
-                if (target === 'admin') {
-                    loadDashboardStats();
-                    loadRecentActivity();
-                }
-                
-                // Si se selecciona la sección de asistentes, cargar lista
-                if (target === 'attendees') {
-                    loadAttendeesList();
-                }
-            });
-        });
-        
-        // Menú móvil
-        document.querySelector('.mobile-menu-icon').addEventListener('click', function() {
-            document.querySelector('.nav-links').classList.toggle('active');
-        });
-    }
-    
-    /**
-     * Pestañas del panel de administrador
-     */
-    function initAdminTabs() {
-        document.querySelectorAll('.admin-tab').forEach(tab => {
-            tab.addEventListener('click', function(e) {
-                e.preventDefault();
-                const target = this.getAttribute('data-tab');
-                
-                // Quitar clase activa de todas las pestañas
-                document.querySelectorAll('.admin-tab').forEach(t => {
-                    t.classList.remove('active');
-                });
-                
-                // Ocultar todos los contenidos de pestañas
-                document.querySelectorAll('.tab-content').forEach(content => {
-                    content.classList.remove('active');
-                });
-                
-                // Activar la pestaña seleccionada
-                this.classList.add('active');
-                document.getElementById(target).classList.add('active');
-                
-                // Cargar datos específicos según la pestaña
-                if (target === 'overview') {
-                    loadDashboardStats();
-                    loadRecentActivity();
-                } else if (target === 'attendance-history') {
-                    loadAttendanceHistory();
-                } else if (target === 'users') {
-                    loadUsersTable();
-                }
-            });
-        });
-    }
-    
-    /**
-     * Escáner de códigos QR
-     */
-    function initQRScanner() {
-        const startScannerBtn = document.getElementById('start-scanner');
-        const stopScannerBtn = document.getElementById('stop-scanner');
-        const scanResult = document.getElementById('scan-result');
-        const scanMessages = document.getElementById('scan-messages');
-        
-        startScannerBtn.addEventListener('click', function() {
-            if (!isScanning) {
-                // Configuración del escáner
-                const config = { fps: 10, qrbox: 250 };
-                
-                // Iniciar escáner
-                html5QrCode.start(
-                    { facingMode: "environment" }, 
-                    config,
-                    onScanSuccess,
-                    onScanFailure
-                )
-                .then(() => {
-                    isScanning = true;
-                    startScannerBtn.classList.add('hidden');
-                    stopScannerBtn.classList.remove('hidden');
-                })
-                .catch(err => {
-                    showScanMessage('error', 'Error al iniciar la cámara: ' + err);
-                });
-            }
-        });
-        
-        stopScannerBtn.addEventListener('click', function() {
-            if (isScanning) {
-                html5QrCode.stop()
-                .then(() => {
-                    isScanning = false;
-                    stopScannerBtn.classList.add('hidden');
-                    startScannerBtn.classList.remove('hidden');
-                })
-                .catch(err => {
-                    console.error('Error al detener el escáner:', err);
-                });
-            }
-        });
-        
-        // Función que se ejecuta cuando se escanea un código QR
-        function onScanSuccess(qrCodeMessage) {
-            // Detener el escáner después de un escaneo exitoso
-            html5QrCode.stop().catch(err => console.error(err));
-            isScanning = false;
-            stopScannerBtn.classList.add('hidden');
-            startScannerBtn.classList.remove('hidden');
-            
-            // Enviar el código QR al servidor
-            processScan(qrCodeMessage);
-        }
-        
-        function onScanFailure(error) {
-            // No hacer nada en caso de error (es normal durante el escaneo)
-        }
-        
-        function processScan(qrCode) {
-            // Mostrar mensaje de carga
-            showScanMessage('info', 'Procesando código QR...');
-            
-            // Enviar solicitud al servidor
-            fetch('Componentes/Handler.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    'action': 'scan_qr',
-                    'qr_code': qrCode
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Mostrar mensaje de éxito
-                    const statusText = data.status === 'presente' ? 'Presente' : 'Tardanza';
-                    const statusClass = data.status === 'presente' ? 'success' : 'warning';
-                    
-                    showScanMessage(
-                        statusClass, 
-                        `<strong>${data.user}</strong> - Asistencia registrada: <span class="status status-${data.status}">${statusText}</span> a las ${data.time}`
-                    );
-                    
-                    // Actualizar dashboard si está visible
-                    if (!document.getElementById('admin').classList.contains('hidden')) {
-                        loadDashboardStats();
-                        loadRecentActivity();
-                    }
-                    
-                    // Actualizar lista de asistentes si está visible
-                    if (!document.getElementById('attendees').classList.contains('hidden')) {
-                        loadAttendeesList();
-                    }
-                } else {
-                    // Mostrar mensaje de error
-                    showScanMessage('error', data.message);
-                }
-            })
-            .catch(error => {
-                showScanMessage('error', 'Error de conexión: ' + error);
-            });
-        }
-        
-        function showScanMessage(type, message) {
-            // Crear elemento de mensaje
-            const messageElement = document.createElement('div');
-            messageElement.className = `message message-${type}`;
-            messageElement.innerHTML = message;
-            
-            // Limpiar mensajes anteriores
-            scanMessages.innerHTML = '';
-            
-            // Agregar nuevo mensaje
-            scanMessages.appendChild(messageElement);
-            
-            // Desplazarse hacia el mensaje
-            messageElement.scrollIntoView({ behavior: 'smooth' });
-        }
-    }
-    
-    /**
-     * Gestión de usuarios
-     */
-    function initUsersTable() {
-        const addUserForm = document.getElementById('add-user-form');
-        const userSearchInput = document.getElementById('user-search');
-        
-        // Cargar la tabla de usuarios
-        loadUsersTable();
-        
-        // Manejar el formulario de agregar usuario
-        if (addUserForm) {
-            addUserForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const name = document.getElementById('user-name').value;
-                const email = document.getElementById('user-email').value;
-                const role = document.getElementById('user-role').value;
-                
-                // Validar campos
-                if (!name || !email) {
-                    alert('Por favor, complete todos los campos obligatorios.');
-                    return;
-                }
-                
-                // Enviar datos al servidor
-                fetch('Componentes/Handler.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams({
-                        'action': 'add_user',
-                        'name': name,
-                        'email': email,
-                        'role': role
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Limpiar formulario
-                        addUserForm.reset();
-                        
-                        // Actualizar tabla
-                        loadUsersTable();
-                        
-                        // Mostrar mensaje
-                        alert('Usuario agregado correctamente.');
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    alert('Error de conexión: ' + error);
-                });
-            });
-        }
-        
-        // Filtrar usuarios por búsqueda
-        if (userSearchInput) {
-            userSearchInput.addEventListener('input', function() {
-                const searchTerm = this.value.toLowerCase();
-                const userRows = document.querySelectorAll('#users-table tbody tr');
-                
-                userRows.forEach(row => {
-                    const name = row.querySelector('td:first-child').textContent.toLowerCase();
-                    const email = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
-                    
-                    if (name.includes(searchTerm) || email.includes(searchTerm)) {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                    }
-                });
-            });
-        }
-    }
-    
-    function loadUsersTable() {
-        const usersTable = document.querySelector('#users-table tbody');
-        
-        if (!usersTable) return;
-        
-        // Mostrar indicador de carga
-        usersTable.innerHTML = '<tr><td colspan="5">Cargando usuarios...</td></tr>';
-
-        fetch('Componentes/Handler.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                'action': 'get_users'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && Array.isArray(data.users)) {
-                usersTable.innerHTML = '';
-                data.users.forEach(user => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${user.name}</td>
-                        <td>${user.email}</td>
-                        <td>${user.role}</td>
-                        <td>
-                            <img src="Componentes/qr.php?code=${encodeURIComponent(user.qr_code)}" alt="QR" width="40">
-                        </td>
-                        <td>
-                            <button class="btn btn-danger btn-sm delete-user" data-id="${user.id}"><i class="fas fa-trash"></i></button>
-                        </td>
-                    `;
-                    usersTable.appendChild(row);
-                });
-
-                // Botón eliminar usuario
-                document.querySelectorAll('.delete-user').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        if (confirm('¿Seguro que deseas eliminar este usuario?')) {
-                            const userId = this.getAttribute('data-id');
-                            fetch('Componentes/Handler.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded',
-                                },
-                                body: new URLSearchParams({
-                                    'action': 'delete_user',
-                                    'user_id': userId
-                                })
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    loadUsersTable();
-                                } else {
-                                    alert('Error: ' + data.message);
-                                }
-                            })
-                            .catch(error => {
-                                alert('Error de conexión: ' + error);
-                            });
-                        }
-                    });
-                });
-
-            } else {
-                usersTable.innerHTML = '<tr><td colspan="5">No se encontraron usuarios.</td></tr>';
-            }
-        })
-        .catch(error => {
-            usersTable.innerHTML = '<tr><td colspan="5">Error al cargar usuarios.</td></tr>';
-        });
-    }
-
-    /**
-     * Historial de asistencia
-     */
-    function initAttendanceHistory() {
-        loadAttendanceHistory();
-    }
-
-    function loadAttendanceHistory() {
-        const historyTable = document.querySelector('#attendance-history-table tbody');
-        if (!historyTable) return;
-
-        historyTable.innerHTML = '<tr><td colspan="4">Cargando historial...</td></tr>';
-
-        fetch('Componentes/Handler.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                'action': 'get_attendance_history'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && Array.isArray(data.history)) {
-                historyTable.innerHTML = '';
-                data.history.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${item.user}</td>
-                        <td>${item.date}</td>
-                        <td>${item.time}</td>
-                        <td>${item.status}</td>
-                    `;
-                    historyTable.appendChild(row);
-                });
-            } else {
-                historyTable.innerHTML = '<tr><td colspan="4">No hay registros.</td></tr>';
-            }
-        })
-        .catch(error => {
-            historyTable.innerHTML = '<tr><td colspan="4">Error al cargar historial.</td></tr>';
-        });
-    }
-
-    /**
-     * Exportar historial
-     */
-    function initExportForm() {
-        const exportForm = document.getElementById('export-form');
-        if (!exportForm) return;
-
-        exportForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            exportForm.submit(); // Puede ser reemplazado por lógica AJAX si lo deseas
-        });
-    }
-
-    /**
-     * Dashboard
-     */
-    function loadDashboardStats() {
-        const statsContainer = document.getElementById('dashboard-stats');
-        if (!statsContainer) return;
-
-        statsContainer.innerHTML = 'Cargando estadísticas...';
-
-        fetch('Componentes/Handler.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                'action': 'get_dashboard_stats'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                statsContainer.innerHTML = `
-                    <div class="stat"><strong>${data.total_users}</strong><span>Usuarios</span></div>
-                    <div class="stat"><strong>${data.present_today}</strong><span>Presentes hoy</span></div>
-                    <div class="stat"><strong>${data.late_today}</strong><span>Tardanzas hoy</span></div>
-                `;
-            } else {
-                statsContainer.innerHTML = 'No se pudieron cargar las estadísticas.';
-            }
-        })
-        .catch(error => {
-            statsContainer.innerHTML = 'Error al cargar estadísticas.';
-        });
-    }
-
-    function loadRecentActivity() {
-        const activityContainer = document.getElementById('recent-activity');
-        if (!activityContainer) return;
-
-        activityContainer.innerHTML = 'Cargando actividad...';
-
-        fetch('Componentes/Handler.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                'action': 'get_recent_activity'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && Array.isArray(data.activity)) {
-                activityContainer.innerHTML = '';
-                data.activity.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'activity-item';
-                    div.innerHTML = `<strong>${item.user}</strong> - ${item.status} a las ${item.time}`;
-                    activityContainer.appendChild(div);
-                });
-            } else {
-                activityContainer.innerHTML = 'No hay actividad reciente.';
-            }
-        })
-        .catch(error => {
-            activityContainer.innerHTML = 'Error al cargar actividad.';
-        });
-    }
-
-    function loadAttendeesList() {
-        const attendeesTable = document.querySelector('#attendees-table tbody');
-        if (!attendeesTable) return;
-
-        attendeesTable.innerHTML = '<tr><td colspan="3">Cargando asistentes...</td></tr>';
-
-        fetch('Componentes/Handler.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                'action': 'get_attendees'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && Array.isArray(data.attendees)) {
-                attendeesTable.innerHTML = '';
-                data.attendees.forEach(att => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${att.name}</td>
-                        <td>${att.email}</td>
-                        <td>${att.status}</td>
-                    `;
-                    attendeesTable.appendChild(row);
-                });
-            } else {
-                attendeesTable.innerHTML = '<tr><td colspan="3">No hay asistentes.</td></tr>';
-            }
-        })
-        .catch(error => {
-            attendeesTable.innerHTML = '<tr><td colspan="3">Error al cargar asistentes.</td></tr>';
-        });
-    }
-
+    loadRecentActivity();
 });
+
+// ========== NAVEGACIÓN ==========
+function initializeNavigation() {
+    // Manejar clics en navegación principal
+    $('.nav-link').on('click', function(e) {
+        e.preventDefault();
+        const target = $(this).data('target');
+        
+        if (target) {
+            showPage(target);
+            
+            // Actualizar navegación activa
+            $('.nav-link').removeClass('active');
+            $(this).addClass('active');
+        }
+    });
+    
+    // Manejar clics en tabs del panel de administrador
+    $('.admin-tab').on('click', function(e) {
+        e.preventDefault();
+        const tab = $(this).data('tab');
+        
+        if (tab) {
+            showAdminTab(tab);
+            
+            // Actualizar tab activo
+            $('.admin-tab').removeClass('active');
+            $(this).addClass('active');
+        }
+    });
+    
+    // Botón de escaneo en hero
+    $('.scan-btn').on('click', function(e) {
+        e.preventDefault();
+        const target = $(this).data('target');
+        showPage(target);
+        
+        // Actualizar navegación
+        $('.nav-link').removeClass('active');
+        $('.nav-link[data-target="scan"]').addClass('active');
+    });
+}
+
+function showPage(pageId) {
+    // Ocultar todas las páginas
+    $('.page').removeClass('active').addClass('hidden');
+    
+    // Mostrar página seleccionada
+    $(`#${pageId}`).removeClass('hidden').addClass('active');
+    
+    // Ejecutar acciones específicas según la página
+    switch(pageId) {
+        case 'scan':
+            initializeQRScanner();
+            loadScanStats();
+            break;
+        case 'admin':
+            loadDashboardStats();
+            break;
+        case 'people':
+            loadAllUsers();
+            break;
+    }
+}
+
+function showAdminTab(tabId) {
+    // Ocultar todas las tabs
+    $('.admin-content').removeClass('active').addClass('hidden');
+    
+    // Mostrar tab seleccionada
+    $(`#admin-${tabId}`).removeClass('hidden').addClass('active');
+    
+    // Cargar datos específicos
+    switch(tabId) {
+        case 'overview':
+            loadDashboardStats();
+            loadRecentActivity();
+            break;
+        case 'attendance-history':
+            loadAttendanceHistory();
+            break;
+        case 'users':
+            loadUsersForAdmin();
+            break;
+        case 'export':
+            // No necesita carga inicial
+            break;
+        case 'settings':
+            loadSystemConfig();
+            break;
+    }
+}
+
+// ========== ESCÁNER QR ==========
+let qrScanner = null;
+let scannerActive = false;
+
+function initializeScanner() {
+    $('#start-scan').on('click', startQRScanner);
+    $('#stop-scan').on('click', stopQRScanner);
+    $('#switch-camera').on('click', switchCamera);
+    $('#manual-submit').on('click', processManualQR);
+    
+    // Enter en input manual
+    $('#manual-qr').on('keypress', function(e) {
+        if (e.which === 13) {
+            processManualQR();
+        }
+    });
+}
+
+function initializeQRScanner() {
+    // Solo inicializar si no está ya activo
+    if (!scannerActive) {
+        $('#start-scan').show();
+        $('#stop-scan').hide();
+        $('#switch-camera').hide();
+    }
+}
+
+function startQRScanner() {
+    console.log('Iniciando escáner QR...');
+    
+    // Verificar si Html5Qrcode está disponible
+    if (typeof Html5Qrcode === 'undefined') {
+        console.error('Html5Qrcode no está disponible');
+        showNotification('Error: Librería de escáner no disponible', 'error');
+        return;
+    }
+    
+    try {
+        qrScanner = new Html5Qrcode("qr-reader");
+        
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+        };
+        
+        qrScanner.start(
+            { facingMode: "environment" }, // Cámara trasera
+            config,
+            (decodedText, decodedResult) => {
+                console.log('QR escaneado:', decodedText);
+                processQRCode(decodedText);
+            },
+            (errorMessage) => {
+                // Error de escaneo (normal cuando no hay QR visible)
+            }
+        ).then(() => {
+            scannerActive = true;
+            $('#start-scan').hide();
+            $('#stop-scan').show();
+            $('#switch-camera').show();
+            showNotification('Escáner iniciado correctamente', 'success');
+        }).catch((error) => {
+            console.error('Error al iniciar escáner:', error);
+            showNotification('Error al acceder a la cámara', 'error');
+        });
+        
+    } catch (error) {
+        console.error('Error al crear escáner:', error);
+        showNotification('Error al inicializar el escáner', 'error');
+    }
+}
+
+function stopQRScanner() {
+    if (qrScanner && scannerActive) {
+        qrScanner.stop().then(() => {
+            scannerActive = false;
+            $('#start-scan').show();
+            $('#stop-scan').hide();
+            $('#switch-camera').hide();
+            showNotification('Escáner detenido', 'info');
+        }).catch((error) => {
+            console.error('Error al detener escáner:', error);
+        });
+    }
+}
+
+function switchCamera() {
+    // Implementar cambio de cámara si es necesario
+    showNotification('Función de cambio de cámara en desarrollo', 'info');
+}
+
+function processManualQR() {
+    const qrCode = $('#manual-qr').val().trim();
+    
+    if (!qrCode) {
+        showNotification('Por favor, ingrese un código QR', 'warning');
+        return;
+    }
+    
+    processQRCode(qrCode);
+    $('#manual-qr').val('');
+}
+
+function processQRCode(qrCode) {
+    console.log('Procesando código QR:', qrCode);
+    
+    // Mostrar loading
+    showLoadingModal('Verificando código QR...');
+    
+    // Enviar a servidor para procesar
+    $.ajax({
+        url: 'Includes/Handler.php',
+        method: 'POST',
+        data: {
+            action: 'scan_qr',
+            qr_code: qrCode
+        },
+        dataType: 'json',
+        success: function(response) {
+            hideLoadingModal();
+            
+            if (response.success) {
+                showScanResult(response.data);
+                updateScanStats();
+                loadRecentScans();
+            } else {
+                showNotification(response.message || 'Error al procesar código QR', 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            hideLoadingModal();
+            console.error('Error AJAX:', error);
+            showNotification('Error de conexión al servidor', 'error');
+        }
+    });
+}
+
+function showScanResult(data) {
+    // Llenar modal con información del resultado
+    $('#result-user-name').text(data.usuario?.nombre || 'Usuario desconocido');
+    $('#result-user-email').text(data.usuario?.email || '');
+    $('#result-user-role').text(data.usuario?.rol || '').removeClass().addClass('role-badge ' + (data.usuario?.rol || ''));
+    
+    // Configurar estado
+    const statusConfig = {
+        'presente': { icon: 'fa-check-circle', color: 'success', text: 'Asistencia Registrada' },
+        'tardanza': { icon: 'fa-clock', color: 'warning', text: 'Tardanza Registrada' },
+        'error': { icon: 'fa-times-circle', color: 'error', text: 'Error en Registro' }
+    };
+    
+    const status = statusConfig[data.estado] || statusConfig['error'];
+    
+    $('#result-status-icon i').removeClass().addClass('fas ' + status.icon);
+    $('#result-status-icon').removeClass().addClass('status-icon ' + status.color);
+    $('#result-status-text').text(status.text);
+    $('#result-status-time').text(data.hora || new Date().toLocaleTimeString());
+    
+    // Mostrar mensaje adicional si existe
+    if (data.mensaje) {
+        $('#result-message').text(data.mensaje).show();
+    } else {
+        $('#result-message').hide();
+    }
+    
+    // Mostrar modal
+    $('#scan-result-modal').show();
+}
+
+// ========== GESTIÓN DE USUARIOS ==========
+function initializeUserManagement() {
+    // Modal de agregar usuario
+    $('#add-user-btn').on('click', function() {
+        $('#user-modal').show();
+        $('#user-form')[0].reset();
+        $('#user-modal .modal-title').text('Agregar Usuario');
+        $('#user-id').val('');
+    });
+    
+    // Guardar usuario
+    $('#save-user').on('click', saveUser);
+    
+    // Formulario de usuario
+    $('#user-form').on('submit', function(e) {
+        e.preventDefault();
+        saveUser();
+    });
+    
+    // Cerrar modales
+    $('.close, .modal-close').on('click', function() {
+        $(this).closest('.modal').hide();
+    });
+    
+    // Continuar escaneando
+    $('#continue-scanning').on('click', function() {
+        $('#scan-result-modal').hide();
+    });
+}
+
+function saveUser() {
+    const userId = $('#user-id').val();
+    const formData = {
+        action: userId ? 'update_user' : 'add_user',
+        name: $('#user-name').val().trim(),
+        email: $('#user-email').val().trim(),
+        role: $('#user-role').val()
+    };
+    
+    if (userId) {
+        formData.user_id = userId;
+    }
+    
+    // Validación básica
+    if (!formData.name || !formData.email) {
+        showNotification('Nombre y correo son obligatorios', 'warning');
+        return;
+    }
+    
+    // Validar email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+        showNotification('Por favor, ingrese un correo válido', 'warning');
+        return;
+    }
+    
+    showLoadingModal(userId ? 'Actualizando usuario...' : 'Creando usuario...');
+    
+    $.ajax({
+        url: 'Includes/Handler.php',
+        method: 'POST',
+        data: formData,
+        dataType: 'json',
+        success: function(response) {
+            hideLoadingModal();
+            
+            if (response.success) {
+                $('#user-modal').hide();
+                showNotification(response.message, 'success');
+                
+                // Recargar listas de usuarios
+                loadAllUsers();
+                loadUsersForAdmin();
+            } else {
+                showNotification(response.message, 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            hideLoadingModal();
+            console.error('Error al guardar usuario:', error);
+            showNotification('Error de conexión al servidor', 'error');
+        }
+    });
+}
+
+function editUser(userId) {
+    // Buscar datos del usuario
+    $.ajax({
+        url: 'Includes/Handler.php',
+        method: 'POST',
+        data: {
+            action: 'get_users'
+        },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                const user = response.data.find(u => u.id === userId);
+                if (user) {
+                    // Llenar formulario
+                    $('#user-id').val(user.id);
+                    $('#user-name').val(user.nombre);
+                    $('#user-email').val(user.email);
+                    $('#user-role').val(user.rol);
+                    
+                    // Mostrar modal
+                    $('#user-modal .modal-title').text('Editar Usuario');
+                    $('#user-modal').show();
+                }
+            }
+        }
+    });
+}
+
+function deleteUser(userId, userName) {
+    if (!confirm(`¿Está seguro de eliminar al usuario "${userName}"?`)) {
+        return;
+    }
+    
+    showLoadingModal('Eliminando usuario...');
+    
+    $.ajax({
+        url: 'Includes/Handler.php',
+        method: 'POST',
+        data: {
+            action: 'delete_user',
+            user_id: userId
+        },
+        dataType: 'json',
+        success: function(response) {
+            hideLoadingModal();
+            
+            if (response.success) {
+                showNotification(response.message, 'success');
+                loadAllUsers();
+                loadUsersForAdmin();
+            } else {
+                showNotification(response.message, 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            hideLoadingModal();
+            console.error('Error al eliminar usuario:', error);
+            showNotification('Error de conexión al servidor', 'error');
+        }
+    });
+}
+
+function regenerateQR(userId, userName) {
+    if (!confirm(`¿Regenerar código QR para "${userName}"?`)) {
+        return;
+    }
+    
+    showLoadingModal('Regenerando código QR...');
+    
+    $.ajax({
+        url: 'Includes/Handler.php',
+        method: 'POST',
+        data: {
+            action: 'regenerate_qr',
+            user_id: userId
+        },
+        dataType: 'json',
+        success: function(response) {
+            hideLoadingModal();
+            
+            if (response.success) {
+                showNotification('Código QR regenerado exitosamente', 'success');
+                loadAllUsers();
+                loadUsersForAdmin();
+            } else {
+                showNotification(response.message, 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            hideLoadingModal();
+            console.error('Error al regenerar QR:', error);
+            showNotification('Error de conexión al servidor', 'error');
+        }
+    });
+}
+
+// ========== CARGA DE DATOS ==========
+function loadAllUsers() {
+    $.ajax({
+        url: 'Includes/Handler.php',
+        method: 'POST',
+        data: { action: 'get_users' },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                displayUsersGrid(response.data);
+            } else {
+                console.error('Error al cargar usuarios:', response.message);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error AJAX al cargar usuarios:', error);
+        }
+    });
+}
+
+function loadUsersForAdmin() {
+    $.ajax({
+        url: 'Includes/Handler.php',
+        method: 'POST',
+        data: { action: 'get_users' },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                displayUsersTable(response.data);
+            }
+        }
+    });
+}
+
+function loadDashboardStats() {
+    $.ajax({
+        url: 'Includes/Handler.php',
+        method: 'POST',
+        data: { action: 'get_stats' },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                updateStatsDisplay(response.data);
+            }
+        }
+    });
+}
+
+function loadScanStats() {
+    loadDashboardStats(); // Usar la misma función
+}
+
+function updateScanStats() {
+    loadScanStats();
+}
+
+function loadRecentActivity() {
+    $.ajax({
+        url: 'Includes/Handler.php',
+        method: 'POST',
+        data: { 
+            action: 'get_recent_activity',
+            limit: 10
+        },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                displayRecentActivity(response.data);
+            }
+        }
+    });
+}
+
+function loadRecentScans() {
+    loadRecentActivity(); // Usar la misma función
+}
+
+// ========== FUNCIONES DE VISUALIZACIÓN ==========
+function displayUsersGrid(users) {
+    const container = $('#users-grid');
+    if (container.length === 0) return;
+    
+    container.empty();
+    
+    if (!users || users.length === 0) {
+        container.html('<p class="no-data">No hay usuarios registrados</p>');
+        return;
+    }
+    
+    users.forEach(user => {
+        const userCard = $(`
+            <div class="user-card">
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="user-info">
+                    <h4>${user.nombre}</h4>
+                    <p>${user.email}</p>
+                    <span class="role-badge ${user.rol}">${user.rol}</span>
+                </div>
+                <div class="user-qr">
+                    <div id="qr-${user.id}" class="qr-code"></div>
+                    <p class="qr-text">${user.codigo_qr}</p>
+                </div>
+            </div>
+        `);
+        
+        container.append(userCard);
+        
+        // Generar código QR
+        if (user.codigo_qr && typeof QRCode !== 'undefined') {
+            new QRCode(document.getElementById(`qr-${user.id}`), {
+                text: user.codigo_qr,
+                width: 100,
+                height: 100
+            });
+        }
+    });
+}
+
+function displayUsersTable(users) {
+    const tbody = $('#users-table tbody');
+    if (tbody.length === 0) return;
+    
+    tbody.empty();
+    
+    if (!users || users.length === 0) {
+        tbody.html('<tr><td colspan="6" class="text-center">No hay usuarios registrados</td></tr>');
+        return;
+    }
+    
+    users.forEach(user => {
+        const row = $(`
+            <tr>
+                <td>${user.nombre}</td>
+                <td>${user.email}</td>
+                <td><span class="role-badge ${user.rol}">${user.rol}</span></td>
+                <td><code>${user.codigo_qr}</code></td>
+                <td>
+                    <span class="status-badge ${user.activo ? 'active' : 'inactive'}">
+                        ${user.activo ? 'Activo' : 'Inactivo'}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="editUser('${user.id}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-info" onclick="regenerateQR('${user.id}', '${user.nombre}')">
+                        <i class="fas fa-qrcode"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.id}', '${user.nombre}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `);
+        
+        tbody.append(row);
+    });
+}
+
+function updateStatsDisplay(stats) {
+    // Actualizar estadísticas del dashboard
+    $('#present-count').text(stats.presentes || 0);
+    $('#late-count').text(stats.tardanzas || 0);
+    $('#absent-count').text(stats.ausentes || 0);
+    
+    // También actualizar estadísticas del admin si existen
+    $('#admin-present-count').text(stats.presentes || 0);
+    $('#admin-late-count').text(stats.tardanzas || 0);
+    $('#admin-absent-count').text(stats.ausentes || 0);
+    $('#admin-total-count').text(stats.total || 0);
+}
+
+function displayRecentActivity(activities) {
+    const container = $('#recent-scans-list');
+    if (container.length === 0) return;
+    
+    container.empty();
+    
+    if (!activities || activities.length === 0) {
+        container.html('<p class="no-data">No hay registros recientes</p>');
+        return;
+    }
+    
+    activities.forEach(activity => {
+        const statusIcon = {
+            'presente': 'fa-check-circle text-success',
+            'tardanza': 'fa-clock text-warning',
+            'ausente': 'fa-times-circle text-danger'
+        }[activity.estado] || 'fa-question-circle';
+        
+        const item = $(`
+            <div class="activity-item">
+                <div class="activity-icon">
+                    <i class="fas ${statusIcon}"></i>
+                </div>
+                <div class="activity-info">
+                    <h5>${activity.usuarios?.nombre || 'Usuario'}</h5>
+                    <p>${activity.estado} - ${activity.hora || ''}</p>
+                    <small>${activity.fecha || ''}</small>
+                </div>
+            </div>
+        `);
+        
+        container.append(item);
+    });
+}
+
+// ========== FUNCIONES DE UTILIDAD ==========
+function showNotification(message, type = 'info') {
+    // Crear notificación si no existe el sistema
+    const notification = $(`
+        <div class="notification ${type}">
+            <span>${message}</span>
+            <button class="notification-close">&times;</button>
+        </div>
+    `);
+    
+    // Agregar al body
+    $('body').append(notification);
+    
+    // Auto-remover después de 5 segundos
+    setTimeout(() => {
+        notification.fadeOut(() => notification.remove());
+    }, 5000);
+    
+    // Permitir cerrar manualmente
+    notification.find('.notification-close').on('click', function() {
+        notification.fadeOut(() => notification.remove());
+    });
+}
+
+function showLoadingModal(message = 'Cargando...') {
+    const modal = $(`
+        <div id="loading-modal" class="modal">
+            <div class="modal-content loading-content">
+                <div class="loading-spinner"></div>
+                <p>${message}</p>
+            </div>
+        </div>
+    `);
+    
+    $('body').append(modal);
+    modal.show();
+}
+
+function hideLoadingModal() {
+    $('#loading-modal').remove();
+}
+
+// ========== PANEL DE ADMINISTRADOR ==========
+function initializeAdminPanel() {
+    // Inicializar filtros de historial
+    $('#history-filter-btn').on('click', loadAttendanceHistory);
+    
+    // Inicializar exportación
+    $('#export-btn').on('click', exportData);
+    
+    // Inicializar configuración
+    $('#save-config').on('click', saveSystemConfig);
+    
+    // Marcar ausencias masivas
+    $('#mark-absent-btn').on('click', markAllAbsent);
+}
+
+function loadAttendanceHistory() {
+    const filters = {
+        action: 'get_attendance_history',
+        date: $('#filter-date').val(),
+        status: $('#filter-status').val(),
+        date_start: $('#filter-date-start').val(),
+        date_end: $('#filter-date-end').val()
+    };
+    
+    $.ajax({
+        url: 'Includes/Handler.php',
+        method: 'POST',
+        data: filters,
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                displayAttendanceHistory(response.data);
+            }
+        }
+    });
+}
+
+function displayAttendanceHistory(records) {
+    const tbody = $('#attendance-history-table tbody');
+    tbody.empty();
+    
+    if (!records || records.length === 0) {
+        tbody.html('<tr><td colspan="5" class="text-center">No hay registros</td></tr>');
+        return;
+    }
+    
+    records.forEach(record => {
+        const statusClass = {
+            'presente': 'success',
+            'tardanza': 'warning',
+            'ausente': 'danger'
+        }[record.estado] || 'secondary';
+        
+        const row = $(`
+            <tr>
+                <td>${record.usuarios?.nombre || 'N/A'}</td>
+                <td>${record.fecha}</td>
+                <td>${record.hora || 'N/A'}</td>
+                <td><span class="badge badge-${statusClass}">${record.estado}</span></td>
+                <td>${record.registrado_en || 'N/A'}</td>
+            </tr>
+        `);
+        
+        tbody.append(row);
+    });
+}
+
+function exportData() {
+    const exportData = {
+        action: 'export_data',
+        format: $('#export-format').val(),
+        start_date: $('#export-start-date').val(),
+        end_date: $('#export-end-date').val(),
+        type: $('#export-type').val()
+    };
+    
+    if (!exportData.start_date || !exportData.end_date) {
+        showNotification('Por favor, seleccione las fechas de inicio y fin', 'warning');
+        return;
+    }
+    
+    showLoadingModal('Generando archivo...');
+    
+    $.ajax({
+        url: 'Includes/Handler.php',
+        method: 'POST',
+        data: exportData,
+        dataType: 'json',
+        success: function(response) {
+            hideLoadingModal();
+            
+            if (response.success) {
+                // Crear y descargar archivo
+                if (response.format === 'csv') {
+                    downloadCSV(response.data, response.filename);
+                } else {
+                    showNotification('Formato de exportación no implementado aún', 'info');
+                }
+            } else {
+                showNotification(response.message, 'error');
+            }
+        },
+        error: function() {
+            hideLoadingModal();
+            showNotification('Error al exportar datos', 'error');
+        }
+    });
+}
+
+function downloadCSV(csvData, filename) {
+    const blob = new Blob([csvData], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    showNotification('Archivo descargado exitosamente', 'success');
+}
+
+function loadSystemConfig() {
+    $.ajax({
+        url: 'Includes/Handler.php',
+        method: 'POST',
+        data: { action: 'get_config' },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success && response.data) {
+                const config = response.data;
+                $('#org-name').val(config.nombre_organizacion || '');
+                $('#time-limit').val(config.hora_limite ? config.hora_limite.substring(0, 5) : '09:00');
+                $('#timezone').val(config.zona_horaria || 'America/Mexico_City');
+                $('#email-notifications').val(config.notificaciones_email || 'none');
+            }
+        }
+    });
+}
+
+function saveSystemConfig() {
+    const configData = {
+        action: 'update_config',
+        nombre_organizacion: $('#org-name').val(),
+        hora_limite: $('#time-limit').val(),
+        zona_horaria: $('#timezone').val(),
+        notificaciones_email: $('#email-notifications').val()
+    };
+    
+    showLoadingModal('Guardando configuración...');
+    
+    $.ajax({
+        url: 'Includes/Handler.php',
+        method: 'POST',
+        data: configData,
+        dataType: 'json',
+        success: function(response) {
+            hideLoadingModal();
+            
+            if (response.success) {
+                showNotification('Configuración guardada exitosamente', 'success');
+            } else {
+                showNotification(response.message, 'error');
+            }
+        },
+        error: function() {
+            hideLoadingModal();
+            showNotification('Error al guardar configuración', 'error');
+        }
+    });
+}
+
+function markAllAbsent() {
+    if (!confirm('¿Marcar como ausentes a todos los usuarios que no han registrado asistencia hoy?')) {
+        return;
+    }
+    
+    showLoadingModal('Marcando ausencias...');
+    
+    $.ajax({
+        url: 'Includes/Handler.php',
+        method: 'POST',
+        data: { 
+            action: 'mark_all_absent',
+            date: new Date().toISOString().split('T')[0]
+        },
+        dataType: 'json',
+        success: function(response) {
+            hideLoadingModal();
+            
+            if (response.success) {
+                showNotification(response.message, 'success');
+                loadDashboardStats();
+                loadRecentActivity();
+            } else {
+                showNotification(response.message, 'error');
+            }
+        },
+        error: function() {
+            hideLoadingModal();
+            showNotification('Error al marcar ausencias', 'error');
+        }
+    });
+}
+
+// Exponer funciones globalmente para uso en HTML
+window.editUser = editUser;
+window.deleteUser = deleteUser;
+window.regenerateQR = regenerateQR;

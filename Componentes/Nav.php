@@ -14,7 +14,7 @@
                 <div class="mobile-menu-icon">
                     <i class="fas fa-bars"></i>
                 </div>
-                <a href="#" class="btn scan-btn" data-target="scan">
+                <a href="Escaneo.php" class="btn scan-btn" data-target="scan">
                     <i class="fas fa-qrcode"></i> Escanear QR
                 </a>
             </nav>

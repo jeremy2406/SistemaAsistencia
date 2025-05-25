@@ -1,0 +1,22 @@
+{
+    "name": "SistemaAsistencia",
+    "description": "Sistema de Asistencia por Código QR con Supabase",
+    "type": "project",
+    "version": "1.0.0",
+    "require": {
+        "php": "^8.0",
+        "ext-curl": "*",
+        "ext-json": "*"
+    },
+    "require-dev": {},
+    "scripts": {
+        "post-install-cmd": [
+            "echo 'Sistema de Asistencia QR - Instalación completada'"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true
+    }
+}

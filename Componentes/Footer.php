@@ -7,9 +7,10 @@
     <div>
       <h4 class="font-semibold text-gray-700 mb-2">Enlaces útiles</h4>
       <ul class="text-sm text-gray-600 space-y-1">
-        <li><a href="/index.php" class="hover:underline">Inicio</a></li>
-        <li><a href="/escanear.php" class="hover:underline">Escanear</a></li>
-        <li><a href="/lista.php" class="hover:underline">Lista</a></li>
+        <li><a href="./index.php" class="hover:underline">Inicio</a></li>
+        <li><a href="./escanear.php" class="hover:underline">Escanear</a></li>
+        <li><a href="./lista.php" class="hover:underline">Lista</a></li>
+        <li><a href="./generador_qr.php" class="hover:underline">Generar QR</a></li>
       </ul>
     </div>
     <div>
@@ -19,7 +20,7 @@
     </div>
   </div>
   <div class="text-center text-gray-500 mt-6 text-sm">
-    &copy; <?= date("Y") ?> Sistema de Asistencia QR. Todos los derechos reservados.
+    &copy; <?= date("Y") ?> Sistema de Asistencia QR. Todos los derechos reservados por JEM.
   </div>
 </footer>
 </body>

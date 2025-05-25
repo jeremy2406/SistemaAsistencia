@@ -1,7 +1,7 @@
 <?php
 // Funciones adicionales para el sistema
 
-require_once '../config.php';
+require_once 'config.php';
 
 // Función para obtener todos los usuarios
 function obtenerUsuarios() {

@@ -4,7 +4,7 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type');
 
-require_once './php/config.php';
+require_once 'config.php';
 
 try {
     // Verificar que sea una petición POST
@@ -56,7 +56,8 @@ try {
     $nueva_asistencia = [
         'usuario_id' => $usuario['id'],
         'estatus' => 'Presente',
-        'fecha' => $fecha_hoy
+        'fecha' => $fecha_hoy,
+        'hora_llegada' => date('Y-m-d H:i:s') // Agregar hora_llegada
     ];
 
     $resultado = $supabase->insert('asistencias', $nueva_asistencia);

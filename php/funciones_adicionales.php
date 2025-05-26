@@ -1,5 +1,9 @@
 <?php
-// funciones_adicionales.php - Versión corregida
+// funciones_adicionales.php - Versión completamente corregida
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
 // Limpiar buffer de salida
 while (ob_get_level()) {
     ob_end_clean();
@@ -17,20 +21,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
+// Incluir config sin ejecutar el router
+define('CONFIG_INCLUDED', true);
 require_once 'config.php';
 
 // Función para enviar respuesta JSON limpia
 function sendCleanJsonResponse($data) {
-    // Limpiar cualquier salida previa
-    while (ob_get_level()) {
-        ob_end_clean();
-    }
-    
     $json = json_encode($data, JSON_UNESCAPED_UNICODE);
     if (json_last_error() !== JSON_ERROR_NONE) {
         $json = json_encode([
             'error' => 'Error al codificar JSON: ' . json_last_error_msg()
         ]);
+        http_response_code(500);
     }
     
     echo $json;
@@ -41,9 +43,10 @@ function sendCleanJsonResponse($data) {
 function obtenerUsuarios() {
     try {
         $supabase = new SupabaseClient();
-        $usuarios = $supabase->select('usuarios', '*', 'order=nombre.asc');
+        $usuarios = $supabase->select('usuarios', 'id,nombre,apellido,ocupacion,codigo_qr', 'order=nombre.asc');
         return $usuarios;
     } catch (Exception $e) {
+        error_log('Error en obtenerUsuarios: ' . $e->getMessage());
         return ['error' => $e->getMessage()];
     }
 }
@@ -66,8 +69,14 @@ function crearUsuario($nombre, $apellido, $ocupacion, $codigo_qr) {
             'codigo_qr' => $codigo_qr
         ];
 
-        return $supabase->insert('usuarios', $datos);
+        $resultado = $supabase->insert('usuarios', $datos);
+        return [
+            'success' => true,
+            'message' => 'Usuario creado exitosamente',
+            'data' => $resultado
+        ];
     } catch (Exception $e) {
+        error_log('Error en crearUsuario: ' . $e->getMessage());
         return ['error' => $e->getMessage()];
     }
 }
@@ -97,6 +106,7 @@ function obtenerEstadisticas($fecha = null) {
             'ausentes' => $cantidadUsuarios - $cantidadAsistencias
         ];
     } catch (Exception $e) {
+        error_log('Error en obtenerEstadisticas: ' . $e->getMessage());
         return ['error' => $e->getMessage()];
     }
 }
@@ -111,6 +121,7 @@ function obtenerHistorialUsuario($usuario_id, $limite = 10) {
             'usuario_id=eq.' . $usuario_id . '&order=fecha.desc&limit=' . $limite
         );
     } catch (Exception $e) {
+        error_log('Error en obtenerHistorialUsuario: ' . $e->getMessage());
         return ['error' => $e->getMessage()];
     }
 }
@@ -127,6 +138,7 @@ function generarReporte($fecha_inicio, $fecha_fin) {
         
         return $asistencias;
     } catch (Exception $e) {
+        error_log('Error en generarReporte: ' . $e->getMessage());
         return ['error' => $e->getMessage()];
     }
 }

@@ -1,13 +1,48 @@
 <?php
-// Funciones adicionales para el sistema
+// funciones_adicionales.php - Versión corregida
+// Limpiar buffer de salida
+while (ob_get_level()) {
+    ob_end_clean();
+}
+
+// Establecer headers CORS inmediatamente
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Content-Type: application/json; charset=utf-8');
+
+// Manejar preflight OPTIONS
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
 require_once 'config.php';
 
+// Función para enviar respuesta JSON limpia
+function sendCleanJsonResponse($data) {
+    // Limpiar cualquier salida previa
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    
+    $json = json_encode($data, JSON_UNESCAPED_UNICODE);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        $json = json_encode([
+            'error' => 'Error al codificar JSON: ' . json_last_error_msg()
+        ]);
+    }
+    
+    echo $json;
+    exit();
+}
+
 // Función para obtener todos los usuarios
 function obtenerUsuarios() {
-    $supabase = new SupabaseClient();
     try {
-        return $supabase->select('usuarios', '*', 'order=nombre.asc');
+        $supabase = new SupabaseClient();
+        $usuarios = $supabase->select('usuarios', '*', 'order=nombre.asc');
+        return $usuarios;
     } catch (Exception $e) {
         return ['error' => $e->getMessage()];
     }
@@ -15,10 +50,11 @@ function obtenerUsuarios() {
 
 // Función para crear un nuevo usuario
 function crearUsuario($nombre, $apellido, $ocupacion, $codigo_qr) {
-    $supabase = new SupabaseClient();
     try {
+        $supabase = new SupabaseClient();
+        
         // Verificar que el código QR no exista
-        $existente = $supabase->select('usuarios', 'id', 'codigo_qr=eq.' . $codigo_qr);
+        $existente = $supabase->select('usuarios', 'id', 'codigo_qr=eq.' . urlencode($codigo_qr));
         if (!empty($existente)) {
             throw new Exception('El código QR ya existe');
         }
@@ -38,8 +74,8 @@ function crearUsuario($nombre, $apellido, $ocupacion, $codigo_qr) {
 
 // Función para obtener estadísticas de asistencia
 function obtenerEstadisticas($fecha = null) {
-    $supabase = new SupabaseClient();
     try {
+        $supabase = new SupabaseClient();
         $fecha = $fecha ?: date('Y-m-d');
         
         // Total de usuarios registrados
@@ -67,8 +103,8 @@ function obtenerEstadisticas($fecha = null) {
 
 // Función para obtener historial de asistencia de un usuario
 function obtenerHistorialUsuario($usuario_id, $limite = 10) {
-    $supabase = new SupabaseClient();
     try {
+        $supabase = new SupabaseClient();
         return $supabase->select(
             'asistencias',
             'fecha,hora_llegada,estatus',
@@ -81,8 +117,8 @@ function obtenerHistorialUsuario($usuario_id, $limite = 10) {
 
 // Función para generar reporte de asistencia por rango de fechas
 function generarReporte($fecha_inicio, $fecha_fin) {
-    $supabase = new SupabaseClient();
     try {
+        $supabase = new SupabaseClient();
         $asistencias = $supabase->select(
             'asistencias',
             'fecha,hora_llegada,estatus,usuarios(nombre,apellido,ocupacion)',
@@ -95,68 +131,114 @@ function generarReporte($fecha_inicio, $fecha_fin) {
     }
 }
 
-// Endpoints para las funciones adicionales
-
+// Procesar requests GET
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $accion = $_GET['accion'] ?? '';
-    
-    switch ($accion) {
-        case 'usuarios':
-            header('Content-Type: application/json');
-            echo json_encode(obtenerUsuarios());
-            break;
-            
-        case 'estadisticas':
-            header('Content-Type: application/json');
-            $fecha = $_GET['fecha'] ?? null;
-            echo json_encode(obtenerEstadisticas($fecha));
-            break;
-            
-        case 'historial':
-            header('Content-Type: application/json');
-            $usuario_id = $_GET['usuario_id'] ?? '';
-            $limite = $_GET['limite'] ?? 10;
-            if (empty($usuario_id)) {
-                echo json_encode(['error' => 'ID de usuario requerido']);
-            } else {
-                echo json_encode(obtenerHistorialUsuario($usuario_id, $limite));
-            }
-            break;
-            
-        case 'reporte':
-            header('Content-Type: application/json');
-            $fecha_inicio = $_GET['fecha_inicio'] ?? '';
-            $fecha_fin = $_GET['fecha_fin'] ?? '';
-            if (empty($fecha_inicio) || empty($fecha_fin)) {
-                echo json_encode(['error' => 'Fechas de inicio y fin requeridas']);
-            } else {
-                echo json_encode(generarReporte($fecha_inicio, $fecha_fin));
-            }
-            break;
-            
-        default:
-            echo json_encode(['error' => 'Acción no válida']);
+    try {
+        $accion = $_GET['accion'] ?? '';
+        
+        switch ($accion) {
+            case 'usuarios':
+                $resultado = obtenerUsuarios();
+                sendCleanJsonResponse($resultado);
+                break;
+                
+            case 'estadisticas':
+                $fecha = $_GET['fecha'] ?? null;
+                $resultado = obtenerEstadisticas($fecha);
+                sendCleanJsonResponse($resultado);
+                break;
+                
+            case 'historial':
+                $usuario_id = $_GET['usuario_id'] ?? '';
+                $limite = $_GET['limite'] ?? 10;
+                if (empty($usuario_id)) {
+                    sendCleanJsonResponse(['error' => 'ID de usuario requerido']);
+                } else {
+                    $resultado = obtenerHistorialUsuario($usuario_id, $limite);
+                    sendCleanJsonResponse($resultado);
+                }
+                break;
+                
+            case 'reporte':
+                $fecha_inicio = $_GET['fecha_inicio'] ?? '';
+                $fecha_fin = $_GET['fecha_fin'] ?? '';
+                if (empty($fecha_inicio) || empty($fecha_fin)) {
+                    sendCleanJsonResponse(['error' => 'Fechas de inicio y fin requeridas']);
+                } else {
+                    $resultado = generarReporte($fecha_inicio, $fecha_fin);
+                    sendCleanJsonResponse($resultado);
+                }
+                break;
+                
+            default:
+                sendCleanJsonResponse([
+                    'error' => 'Acción no válida',
+                    'accion_recibida' => $accion,
+                    'acciones_disponibles' => [
+                        'usuarios' => 'Obtener lista de usuarios',
+                        'estadisticas' => 'Obtener estadísticas de asistencia',
+                        'historial' => 'Obtener historial de usuario (requiere usuario_id)',
+                        'reporte' => 'Generar reporte (requiere fecha_inicio y fecha_fin)'
+                    ]
+                ]);
+        }
+        
+    } catch (Exception $e) {
+        error_log('Error en GET request: ' . $e->getMessage());
+        sendCleanJsonResponse(['error' => 'Error interno: ' . $e->getMessage()]);
     }
 }
 
+// Procesar requests POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $input = json_decode(file_get_contents('php://input'), true);
-    $accion = $input['accion'] ?? '';
-    
-    if ($accion === 'crear_usuario') {
-        header('Content-Type: application/json');
-        $nombre = $input['nombre'] ?? '';
-        $apellido = $input['apellido'] ?? '';
-        $ocupacion = $input['ocupacion'] ?? '';
-        $codigo_qr = $input['codigo_qr'] ?? '';
+    try {
+        $input = file_get_contents('php://input');
         
-        if (empty($nombre) || empty($apellido) || empty($ocupacion) || empty($codigo_qr)) {
-            echo json_encode(['error' => 'Todos los campos son requeridos']);
-        } else {
-            echo json_encode(crearUsuario($nombre, $apellido, $ocupacion, $codigo_qr));
+        if (empty($input)) {
+            sendCleanJsonResponse(['error' => 'No se recibieron datos']);
         }
-    } else {
-        echo json_encode(['error' => 'Acción no válida']);
+        
+        $data = json_decode($input, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            sendCleanJsonResponse(['error' => 'JSON no válido: ' . json_last_error_msg()]);
+        }
+        
+        $accion = $data['accion'] ?? '';
+        
+        if ($accion === 'crear_usuario') {
+            $nombre = trim($data['nombre'] ?? '');
+            $apellido = trim($data['apellido'] ?? '');
+            $ocupacion = trim($data['ocupacion'] ?? '');
+            $codigo_qr = trim($data['codigo_qr'] ?? '');
+            
+            if (empty($nombre) || empty($apellido) || empty($ocupacion) || empty($codigo_qr)) {
+                sendCleanJsonResponse(['error' => 'Todos los campos son requeridos']);
+            } else {
+                $resultado = crearUsuario($nombre, $apellido, $ocupacion, $codigo_qr);
+                sendCleanJsonResponse($resultado);
+            }
+        } else {
+            sendCleanJsonResponse([
+                'error' => 'Acción POST no válida',
+                'accion_recibida' => $accion,
+                'acciones_post_disponibles' => [
+                    'crear_usuario' => 'Crear nuevo usuario (requiere nombre, apellido, ocupacion, codigo_qr)'
+                ]
+            ]);
+        }
+        
+    } catch (Exception $e) {
+        error_log('Error en POST request: ' . $e->getMessage());
+        sendCleanJsonResponse(['error' => 'Error interno: ' . $e->getMessage()]);
     }
+}
+
+// Si no es GET ni POST
+if (!in_array($_SERVER['REQUEST_METHOD'], ['GET', 'POST'])) {
+    sendCleanJsonResponse([
+        'error' => 'Método no permitido',
+        'metodo_recibido' => $_SERVER['REQUEST_METHOD'],
+        'metodos_permitidos' => ['GET', 'POST']
+    ]);
 }
 ?>

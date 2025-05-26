@@ -4,19 +4,21 @@ RewriteEngine On
 DirectoryIndex index.php index.html
 Options -Indexes +FollowSymLinks
 
-# Headers de seguridad
-Header always set X-Content-Type-Options nosniff
-Header always set X-Frame-Options SAMEORIGIN
-Header always set X-XSS-Protection "1; mode=block"
-Header always set Referrer-Policy "strict-origin-when-cross-origin"
-
-# Configuración CORS más permisiva para desarrollo
-<FilesMatch "\.(php)$">
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-    Header set Access-Control-Max-Age "86400"
-</FilesMatch>
+# Headers de seguridad (solo si mod_headers está disponible)
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options SAMEORIGIN
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Configuración CORS más permisiva para desarrollo
+    <FilesMatch "\.(php)$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+        Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+        Header set Access-Control-Max-Age "86400"
+    </FilesMatch>
+</IfModule>
 
 # Manejar preflight requests correctamente
 RewriteCond %{REQUEST_METHOD} OPTIONS
@@ -41,18 +43,19 @@ AddType text/css .css
 
 # Proteger archivos sensibles
 <Files "composer.json">
-    Order allow,deny
-    Deny from all
+    Require all denied
 </Files>
 
 <Files "composer.lock">
-    Order allow,deny
-    Deny from all
+    Require all denied
 </Files>
 
 <Files ".env">
-    Order allow,deny
-    Deny from all
+    Require all denied
+</Files>
+
+<Files "*.log">
+    Require all denied
 </Files>
 
 # Compresión GZIP
@@ -84,6 +87,11 @@ AddType text/css .css
 # Reescritura de URLs para manejo de errores
 ErrorDocument 404 /404.php
 ErrorDocument 500 /error.php
+
+# API Routes - Redirigir solicitudes de API al config.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/(.*)$ php/config.php [QSA,L]
 
 # Configuración para debug (remover en producción)
 RewriteCond %{QUERY_STRING} debug=1

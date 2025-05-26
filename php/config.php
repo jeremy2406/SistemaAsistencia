@@ -1,5 +1,8 @@
 <?php
 // config.php - Configuración mejorada de Supabase
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 class SupabaseClient {
     private $url;
     private $key;
@@ -115,13 +118,18 @@ class SupabaseClient {
     }
 }
 
+// Función para establecer headers CORS
+function setCorsHeaders() {
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+    header('Access-Control-Max-Age: 86400');
+    header('Content-Type: application/json; charset=utf-8');
+}
+
 // registrar_asistencia.php - Versión mejorada
 function registrarAsistencia() {
-    // Headers de respuesta
-    header('Content-Type: application/json');
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type');
+    setCorsHeaders();
 
     // Manejar preflight request
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -166,8 +174,7 @@ function registrarAsistencia() {
 
         $usuario = $usuarios[0];
         $fecha_hoy = date('Y-m-d');
-        $zona_horaria = new DateTimeZone('America/Mexico_City'); // Ajusta según tu zona
-        $fecha_hora = new DateTime('now', $zona_horaria);
+        $fecha_hora_actual = date('Y-m-d H:i:s');
 
         // Verificar asistencia existente
         $asistencia_existente = $supabase->select(
@@ -177,10 +184,10 @@ function registrarAsistencia() {
         );
 
         if (!empty($asistencia_existente)) {
-            $hora_existente = new DateTime($asistencia_existente[0]['hora_llegada']);
+            $hora_existente = date('H:i:s', strtotime($asistencia_existente[0]['hora_llegada']));
             echo json_encode([
                 'success' => false,
-                'mensaje' => 'Ya registraste tu asistencia hoy a las ' . $hora_existente->format('H:i:s')
+                'mensaje' => 'Ya registraste tu asistencia hoy a las ' . $hora_existente
             ]);
             exit;
         }
@@ -190,7 +197,7 @@ function registrarAsistencia() {
             'usuario_id' => $usuario['id'],
             'estatus' => 'Presente',
             'fecha' => $fecha_hoy,
-            'hora_llegada' => $fecha_hora->format('Y-m-d H:i:s')
+            'hora_llegada' => $fecha_hora_actual
         ];
 
         $resultado = $supabase->insert('asistencias', $nueva_asistencia);
@@ -201,7 +208,7 @@ function registrarAsistencia() {
             'datos' => [
                 'usuario' => $usuario['nombre'] . ' ' . $usuario['apellido'],
                 'ocupacion' => $usuario['ocupacion'],
-                'hora' => $fecha_hora->format('H:i:s'),
+                'hora' => date('H:i:s'),
                 'fecha' => $fecha_hoy
             ]
         ]);
@@ -210,17 +217,14 @@ function registrarAsistencia() {
         error_log('Error en registrar_asistencia: ' . $e->getMessage());
         echo json_encode([
             'success' => false,
-            'mensaje' => 'Error interno del servidor'
+            'mensaje' => 'Error interno del servidor: ' . $e->getMessage()
         ]);
     }
 }
 
 // obtener_asistencias.php - Versión mejorada
 function obtenerAsistencias() {
-    header('Content-Type: application/json');
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: GET');
-    header('Access-Control-Allow-Headers: Content-Type');
+    setCorsHeaders();
 
     try {
         $supabase = new SupabaseClient();
@@ -264,14 +268,14 @@ function obtenerAsistencias() {
     } catch (Exception $e) {
         error_log('Error en obtener_asistencias: ' . $e->getMessage());
         echo json_encode([
-            'error' => 'Error al obtener datos'
+            'error' => 'Error al obtener datos: ' . $e->getMessage()
         ]);
     }
 }
 
 // test.php - Versión mejorada con diagnósticos
 function testConnection() {
-    header('Content-Type: application/json');
+    setCorsHeaders();
 
     try {
         // Verificar extensiones PHP
@@ -315,7 +319,8 @@ function testConnection() {
                 'total_asistencias' => count($asistencias),
                 'php_version' => PHP_VERSION,
                 'extensions' => $required_extensions,
-                'timestamp' => date('Y-m-d H:i:s')
+                'timestamp' => date('Y-m-d H:i:s'),
+                'servidor' => $_SERVER['SERVER_SOFTWARE'] ?? 'No disponible'
             ]
         ]);
         
@@ -330,29 +335,30 @@ function testConnection() {
 
 // Router principal
 $request_uri = $_SERVER['REQUEST_URI'] ?? '';
-$script_name = basename($_SERVER['SCRIPT_NAME'] ?? '');
+$path_info = parse_url($request_uri, PHP_URL_PATH);
 
-// Determinar qué función ejecutar basado en el archivo solicitado
-switch ($script_name) {
-    case 'registrar_asistencia.php':
-        registrarAsistencia();
-        break;
-    case 'obtener_asistencias.php':
-        obtenerAsistencias();
-        break;
-    case 'test.php':
-        testConnection();
-        break;
-    default:
-        // Para desarrollo local
-        if (strpos($request_uri, 'registrar_asistencia') !== false) {
-            registrarAsistencia();
-        } elseif (strpos($request_uri, 'obtener_asistencias') !== false) {
-            obtenerAsistencias();
-        } elseif (strpos($request_uri, 'test') !== false) {
-            testConnection();
-        } else {
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Endpoint no encontrado']);
-        }
+// Determinar qué función ejecutar
+if (strpos($path_info, 'registrar_asistencia') !== false || 
+    (isset($_POST['action']) && $_POST['action'] === 'registrar_asistencia')) {
+    registrarAsistencia();
+} elseif (strpos($path_info, 'obtener_asistencias') !== false || 
+          (isset($_GET['action']) && $_GET['action'] === 'obtener_asistencias')) {
+    obtenerAsistencias();
+} elseif (strpos($path_info, 'test') !== false || 
+          (isset($_GET['action']) && $_GET['action'] === 'test')) {
+    testConnection();
+} else {
+    // Respuesta por defecto para debugging
+    setCorsHeaders();
+    echo json_encode([
+        'error' => 'Endpoint no encontrado',
+        'request_uri' => $request_uri,
+        'path_info' => $path_info,
+        'available_endpoints' => [
+            'test' => 'Para probar la conexión',
+            'registrar_asistencia' => 'Para registrar asistencia (POST)',
+            'obtener_asistencias' => 'Para obtener asistencias (GET)'
+        ]
+    ]);
 }
+?>

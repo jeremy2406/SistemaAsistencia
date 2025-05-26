@@ -230,7 +230,7 @@ function generarCodigoUnico() {
   return `QR_${timestamp}_${random}`;
 }
 
-// Función para generar QR visual
+// Función CORREGIDA para generar QR visual
 async function generarQRVisual(codigo, contenedor) {
   try {
     // Verificar que la librería esté disponible
@@ -239,7 +239,13 @@ async function generarQRVisual(codigo, contenedor) {
       throw new Error('No se pudo cargar la librería QRCode');
     }
 
+    // Limpiar contenedor
+    contenedor.innerHTML = '';
+    
+    // Crear canvas
     const canvas = document.createElement('canvas');
+    
+    // Generar QR en el canvas
     await QRCode.toCanvas(canvas, codigo, {
       width: 200,
       margin: 2,
@@ -249,28 +255,103 @@ async function generarQRVisual(codigo, contenedor) {
       }
     });
     
-    contenedor.innerHTML = '';
+    // Agregar canvas al contenedor
     contenedor.appendChild(canvas);
+    
+    // Crear un wrapper con la información para facilitar la descarga
+    canvas.setAttribute('data-qr-code', codigo);
+    canvas.setAttribute('data-generated', 'true');
     
     return canvas;
   } catch (error) {
-    console.error('Error al generar QR:', error);
-    // Fallback: crear un QR simple usando una API externa
+    console.error('Error al generar QR con canvas:', error);
+    
+    // Fallback: usar API externa
     try {
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(codigo)}`;
-      const img = document.createElement('img');
-      img.src = qrUrl;
-      img.alt = 'Código QR';
-      img.style.width = '200px';
-      img.style.height = '200px';
       
+      // Crear imagen y esperar a que cargue
+      const img = await new Promise((resolve, reject) => {
+        const imagen = new Image();
+        imagen.crossOrigin = 'anonymous'; // Importante para poder descargar
+        imagen.onload = () => resolve(imagen);
+        imagen.onerror = () => reject(new Error('Error al cargar imagen QR'));
+        imagen.src = qrUrl;
+      });
+      
+      // Crear canvas desde la imagen para poder descargar
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = 200;
+      canvas.height = 200;
+      ctx.drawImage(img, 0, 0, 200, 200);
+      
+      // Limpiar contenedor y agregar canvas
       contenedor.innerHTML = '';
-      contenedor.appendChild(img);
+      contenedor.appendChild(canvas);
       
-      return img;
+      canvas.setAttribute('data-qr-code', codigo);
+      canvas.setAttribute('data-generated', 'true');
+      
+      return canvas;
     } catch (fallbackError) {
+      console.error('Error en fallback:', fallbackError);
       throw new Error('No se pudo generar el código QR');
     }
+  }
+}
+
+// Función CORREGIDA para descargar QR
+function descargarElementoQR(elemento, nombreArchivo) {
+  try {
+    if (!elemento) {
+      throw new Error('Elemento no encontrado');
+    }
+    
+    let canvas;
+    
+    if (elemento.tagName === 'CANVAS') {
+      canvas = elemento;
+    } else if (elemento.tagName === 'IMG') {
+      // Convertir imagen a canvas
+      canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = elemento.naturalWidth || 200;
+      canvas.height = elemento.naturalHeight || 200;
+      ctx.drawImage(elemento, 0, 0);
+    } else {
+      throw new Error('Tipo de elemento no soportado');
+    }
+    
+    // Verificar que el canvas tenga contenido
+    if (canvas.width === 0 || canvas.height === 0) {
+      throw new Error('Canvas vacío');
+    }
+    
+    // Generar URL de descarga
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        mostrarMensaje('Error al generar archivo de descarga', 'error');
+        return;
+      }
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = nombreArchivo;
+      link.href = url;
+      
+      // Simular click y limpiar
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      mostrarMensaje('QR descargado exitosamente', 'success');
+    }, 'image/png');
+    
+  } catch (error) {
+    console.error('Error al descargar:', error);
+    mostrarMensaje('Error al descargar el QR: ' + error.message, 'error');
   }
 }
 
@@ -322,162 +403,171 @@ async function obtenerUsuarios() {
 }
 
 // Event Listeners
-document.getElementById('tabGenerar').addEventListener('click', () => mostrarTab('Generar'));
-document.getElementById('tabMasivos').addEventListener('click', () => mostrarTab('Masivos'));
-document.getElementById('tabUsuarios').addEventListener('click', () => {
-  mostrarTab('Usuarios');
-  cargarUsuarios();
-});
+document.addEventListener('DOMContentLoaded', () => {
+  // Tabs
+  document.getElementById('tabGenerar').addEventListener('click', () => mostrarTab('Generar'));
+  document.getElementById('tabMasivos').addEventListener('click', () => mostrarTab('Masivos'));
+  document.getElementById('tabUsuarios').addEventListener('click', () => {
+    mostrarTab('Usuarios');
+    cargarUsuarios();
+  });
 
-// Formulario de usuario individual
-document.getElementById('formUsuario').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  
-  const nombre = document.getElementById('nombre').value.trim();
-  const apellido = document.getElementById('apellido').value.trim();
-  const ocupacion = document.getElementById('ocupacion').value.trim();
-  let codigoQR = document.getElementById('codigoQR').value.trim();
-  
-  if (!codigoQR) {
-    codigoQR = generarCodigoUnico();
-  }
-  
-  toggleLoading(true);
-  
-  try {
-    // Crear usuario en la base de datos
-    await crearUsuario(nombre, apellido, ocupacion, codigoQR);
+  // Formulario de usuario individual
+  document.getElementById('formUsuario').addEventListener('submit', async (e) => {
+    e.preventDefault();
     
-    // Generar QR visual
-    const qrContainer = document.getElementById('qrContainer');
-    const canvas = await generarQRVisual(codigoQR, qrContainer);
+    const nombre = document.getElementById('nombre').value.trim();
+    const apellido = document.getElementById('apellido').value.trim();
+    const ocupacion = document.getElementById('ocupacion').value.trim();
+    let codigoQR = document.getElementById('codigoQR').value.trim();
     
-    // Mostrar información del usuario
-    document.getElementById('infoUsuario').innerHTML = `
-      <p><strong>Nombre:</strong> ${nombre} ${apellido}</p>
-      <p><strong>Ocupación:</strong> ${ocupacion}</p>
-      <p><strong>Código QR:</strong> ${codigoQR}</p>
-      <p><strong>Fecha:</strong> ${new Date().toLocaleDateString()}</p>
-    `;
-    
-    // Configurar botón de descarga
-    document.getElementById('descargarQR').onclick = () => {
-      descargarElementoQR(canvas, `QR_${nombre}_${apellido}.png`);
-    };
-    
-    // Mostrar resultado
-    document.getElementById('resultadoQR').classList.remove('hidden');
-    
-    // Limpiar formulario
-    document.getElementById('formUsuario').reset();
-    
-    mostrarMensaje('Usuario creado y QR generado exitosamente', 'success');
-    
-  } catch (error) {
-    mostrarMensaje('Error: ' + error.message, 'error');
-  } finally {
-    toggleLoading(false);
-  }
-});
-
-// Función mejorada para descargar QR
-function descargarElementoQR(elemento, nombreArchivo) {
-  try {
-    let dataUrl;
-    
-    if (elemento.tagName === 'CANVAS') {
-      dataUrl = elemento.toDataURL('image/png');
-    } else if (elemento.tagName === 'IMG') {
-      // Para imágenes externas, crear un canvas
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = elemento.width || 200;
-      canvas.height = elemento.height || 200;
-      ctx.drawImage(elemento, 0, 0);
-      dataUrl = canvas.toDataURL('image/png');
-    } else {
-      throw new Error('Elemento no válido para descarga');
+    if (!codigoQR) {
+      codigoQR = generarCodigoUnico();
     }
     
-    const link = document.createElement('a');
-    link.download = nombreArchivo;
-    link.href = dataUrl;
-    link.click();
-  } catch (error) {
-    console.error('Error al descargar:', error);
-    mostrarMensaje('Error al descargar el QR', 'error');
-  }
-}
-
-// Procesar CSV
-document.getElementById('procesarCSV').addEventListener('click', async () => {
-  const archivo = document.getElementById('archivoCSV').files[0];
-  
-  if (!archivo) {
-    mostrarMensaje('Por favor selecciona un archivo CSV', 'error');
-    return;
-  }
-  
-  toggleLoading(true);
-  
-  try {
-    const texto = await archivo.text();
-    const lineas = texto.split('\n').filter(linea => linea.trim());
-    const qrsMasivos = document.getElementById('qrsMasivos');
-    qrsMasivos.innerHTML = '';
+    toggleLoading(true);
     
-    const zip = new JSZip();
-    
-    for (let i = 1; i < lineas.length; i++) { // Saltar header
-      const [nombre, apellido, ocupacion] = lineas[i].split(',').map(s => s.trim());
+    try {
+      // Crear usuario en la base de datos
+      await crearUsuario(nombre, apellido, ocupacion, codigoQR);
       
-      if (nombre && apellido && ocupacion) {
-        const codigoQR = generarCodigoUnico();
+      // Generar QR visual
+      const qrContainer = document.getElementById('qrContainer');
+      const canvas = await generarQRVisual(codigoQR, qrContainer);
+      
+      // Mostrar información del usuario
+      document.getElementById('infoUsuario').innerHTML = `
+        <p><strong>Nombre:</strong> ${nombre} ${apellido}</p>
+        <p><strong>Ocupación:</strong> ${ocupacion}</p>
+        <p><strong>Código QR:</strong> ${codigoQR}</p>
+        <p><strong>Fecha:</strong> ${new Date().toLocaleDateString()}</p>
+      `;
+      
+      // Configurar botón de descarga
+      const descargarBtn = document.getElementById('descargarQR');
+      descargarBtn.onclick = () => {
+        descargarElementoQR(canvas, `QR_${nombre}_${apellido}.png`);
+      };
+      
+      // Mostrar resultado
+      document.getElementById('resultadoQR').classList.remove('hidden');
+      
+      // Limpiar formulario
+      document.getElementById('formUsuario').reset();
+      
+      mostrarMensaje('Usuario creado y QR generado exitosamente', 'success');
+      
+    } catch (error) {
+      mostrarMensaje('Error: ' + error.message, 'error');
+    } finally {
+      toggleLoading(false);
+    }
+  });
+
+  // Procesar CSV
+  document.getElementById('procesarCSV').addEventListener('click', async () => {
+    const archivo = document.getElementById('archivoCSV').files[0];
+    
+    if (!archivo) {
+      mostrarMensaje('Por favor selecciona un archivo CSV', 'error');
+      return;
+    }
+    
+    toggleLoading(true);
+    
+    try {
+      const texto = await archivo.text();
+      const lineas = texto.split('\n').filter(linea => linea.trim());
+      const qrsMasivos = document.getElementById('qrsMasivos');
+      qrsMasivos.innerHTML = '';
+      
+      // Verificar que JSZip esté disponible
+      if (typeof JSZip === 'undefined') {
+        throw new Error('JSZip no está disponible');
+      }
+      
+      const zip = new JSZip();
+      const qrElements = []; // Almacenar elementos para descarga
+      
+      for (let i = 1; i < lineas.length; i++) { // Saltar header
+        const [nombre, apellido, ocupacion] = lineas[i].split(',').map(s => s.trim());
         
-        try {
-          // Crear usuario
-          await crearUsuario(nombre, apellido, ocupacion, codigoQR);
+        if (nombre && apellido && ocupacion) {
+          const codigoQR = generarCodigoUnico();
           
-          // Crear contenedor para QR
-          const qrDiv = document.createElement('div');
-          qrDiv.className = 'text-center p-4 border rounded';
-          qrDiv.innerHTML = `<p class="text-sm font-semibold mb-2">${nombre} ${apellido}</p>`;
-          
-          // Generar QR
-          const canvas = await generarQRVisual(codigoQR, qrDiv);
-          
-          // Agregar al ZIP
-          if (canvas.tagName === 'CANVAS') {
-            const dataUrl = canvas.toDataURL();
-            const base64Data = dataUrl.split(',')[1];
-            zip.file(`QR_${nombre}_${apellido}.png`, base64Data, {base64: true});
+          try {
+            // Crear usuario
+            await crearUsuario(nombre, apellido, ocupacion, codigoQR);
+            
+            // Crear contenedor para QR
+            const qrDiv = document.createElement('div');
+            qrDiv.className = 'text-center p-4 border rounded';
+            qrDiv.innerHTML = `<p class="text-sm font-semibold mb-2">${nombre} ${apellido}</p>`;
+            
+            // Generar QR
+            const canvas = await generarQRVisual(codigoQR, qrDiv);
+            
+            // Almacenar para descarga
+            qrElements.push({
+              canvas: canvas,
+              nombre: `QR_${nombre}_${apellido}.png`
+            });
+            
+            qrsMasivos.appendChild(qrDiv);
+            
+          } catch (error) {
+            console.error(`Error procesando ${nombre} ${apellido}:`, error);
           }
-          
-          qrsMasivos.appendChild(qrDiv);
-          
-        } catch (error) {
-          console.error(`Error procesando ${nombre} ${apellido}:`, error);
         }
       }
+      
+      // Configurar descarga masiva
+      document.getElementById('descargarTodos').onclick = async () => {
+        try {
+          // Agregar cada QR al ZIP
+          for (const qrElement of qrElements) {
+            await new Promise((resolve) => {
+              qrElement.canvas.toBlob((blob) => {
+                if (blob) {
+                  zip.file(qrElement.nombre, blob);
+                }
+                resolve();
+              }, 'image/png');
+            });
+          }
+          
+          // Generar y descargar ZIP
+          const zipBlob = await zip.generateAsync({type: 'blob'});
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(zipBlob);
+          link.download = 'codigos_qr.zip';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+          
+          mostrarMensaje('ZIP descargado exitosamente', 'success');
+        } catch (error) {
+          mostrarMensaje('Error al crear ZIP: ' + error.message, 'error');
+        }
+      };
+      
+      document.getElementById('resultadoMasivo').classList.remove('hidden');
+      mostrarMensaje('QRs generados exitosamente', 'success');
+      
+    } catch (error) {
+      mostrarMensaje('Error al procesar archivo: ' + error.message, 'error');
+    } finally {
+      toggleLoading(false);
     }
-    
-    // Configurar descarga masiva
-    document.getElementById('descargarTodos').onclick = async () => {
-      const zipBlob = await zip.generateAsync({type: 'blob'});
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(zipBlob);
-      link.download = 'codigos_qr.zip';
-      link.click();
-    };
-    
-    document.getElementById('resultadoMasivo').classList.remove('hidden');
-    mostrarMensaje('QRs generados exitosamente', 'success');
-    
-  } catch (error) {
-    mostrarMensaje('Error al procesar archivo: ' + error.message, 'error');
-  } finally {
-    toggleLoading(false);
-  }
+  });
+
+  // Actualizar usuarios
+  document.getElementById('actualizarUsuarios').addEventListener('click', cargarUsuarios);
+
+  // Inicializar
+  mostrarTab('Generar');
+  checkQRLibrary();
 });
 
 // Cargar usuarios
@@ -518,7 +608,7 @@ function renderizarTablaUsuarios() {
   `).join('');
 }
 
-// Generar QR para usuario existente - FUNCIÓN MEJORADA
+// Función CORREGIDA para generar QR existente
 async function generarQRExistente(codigoQR, nombre, apellido) {
   try {
     const modal = document.createElement('div');
@@ -544,8 +634,9 @@ async function generarQRExistente(codigoQR, nombre, apellido) {
     try {
       const qrElement = await generarQRVisual(codigoQR, document.getElementById('qrModal'));
       
-      document.getElementById('descargarModal').disabled = false;
-      document.getElementById('descargarModal').onclick = () => {
+      const descargarBtn = document.getElementById('descargarModal');
+      descargarBtn.disabled = false;
+      descargarBtn.onclick = () => {
         descargarElementoQR(qrElement, `QR_${nombre}_${apellido}.png`);
       };
     } catch (qrError) {
@@ -563,21 +654,8 @@ async function generarQRExistente(codigoQR, nombre, apellido) {
   }
 }
 
-document.getElementById('actualizarUsuarios').addEventListener('click', cargarUsuarios);
-
-// Inicializar - Verificar librerías al cargar
-document.addEventListener('DOMContentLoaded', async () => {
-  mostrarTab('Generar');
-  
-  // Verificar disponibilidad de librerías
-  try {
-    await checkQRLibrary();
-    console.log('Librería QRCode cargada correctamente');
-  } catch (error) {
-    console.warn('Problema cargando librería QRCode:', error);
-    mostrarMensaje('Advertencia: Puede haber problemas generando códigos QR', 'error');
-  }
-});
+// Hacer la función disponible globalmente
+window.generarQRExistente = generarQRExistente;
 </script>
 
 <?php include 'componentes/footer.php'; ?>

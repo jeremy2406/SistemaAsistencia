@@ -5,7 +5,7 @@
 <section class="bg-gradient-to-br from-amber-700 via-amber-600 to-amber-500 text-white py-20">
   <div class="container mx-auto text-center px-4">
     <div class="mb-8">
-      <img src="assets/Logo.png" alt="Chibi's House Logo" class="mx-auto w-48 h-48 object-contain">
+      <img src="Assets/Logo.png" alt="Chibi's House Logo" class="mx-auto w-48 h-48 object-contain">
     </div>
     <h1 class="text-4xl md:text-6xl font-bold mb-4 text-amber-100">Chibi's House</h1>
     <p class="text-xl md:text-2xl mb-2 text-amber-200 font-medium">Best for You Pet</p>

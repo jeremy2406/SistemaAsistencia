@@ -1,12 +1,12 @@
 # Usar la imagen oficial de PHP con Apache
-FROM php:8.2-apache
+FROM php:8.1-apache
 
-# Instalar extensiones de PHP necesarias
-RUN docker-php-ext-install pdo pdo_mysql mysqli
+# Instalar dependencias del sistema y extensiones de PHP
 RUN apt-get update && apt-get install -y \
     libcurl4-openssl-dev \
     pkg-config \
     libssl-dev \
+    curl \
     && docker-php-ext-install curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

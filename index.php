@@ -1,5 +1,5 @@
-<?php include 'componentes/header.php'; ?>
-<?php include 'componentes/nav.php'; ?>
+<?php include 'Componentes/Header.php'; ?>
+<?php include 'Componentes/Nav.php'; ?>
 <section class="bg-blue-600 text-white py-20">
   <div class="container mx-auto text-center">
     <h1 class="text-4xl md:text-5xl font-bold mb-4">Sistema de Asistencia por Código QR</h1>
@@ -24,4 +24,4 @@
     <p>Interfaz intuitiva y responsive, sin necesidad de instalación.</p>
   </div>
 </section>
-<?php include 'componentes/footer.php'; ?>
+<?php include 'Componentes/Footer.php'; ?>

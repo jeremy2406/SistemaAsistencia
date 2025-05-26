@@ -31,7 +31,8 @@ AddType text/css .css
 
 # Configuración PHP básica
 <IfModule mod_php.c>
-    php_value display_errors On
+    # Desactivar display_errors para evitar que interfiera con JSON
+    php_value display_errors Off
     php_value error_reporting E_ALL
     php_value log_errors On
     php_value upload_max_filesize 10M
@@ -39,6 +40,9 @@ AddType text/css .css
     php_value max_execution_time 300
     php_value max_input_time 300
     php_value memory_limit 256M
+    # Configuración de buffer de salida
+    php_value output_buffering On
+    php_value implicit_flush Off
 </IfModule>
 
 # Proteger archivos sensibles
@@ -88,7 +92,24 @@ AddType text/css .css
 ErrorDocument 404 /404.php
 ErrorDocument 500 /error.php
 
-# API Routes - Redirigir solicitudes de API al config.php
+# API Routes mejoradas - Redirigir solicitudes de API al config.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/test/?$ php/config.php?action=test [QSA,L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/registrar_asistencia/?$ php/config.php?action=registrar_asistencia [QSA,L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/obtener_asistencias/?$ php/config.php?action=obtener_asistencias [QSA,L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/obtener_usuarios/?$ php/config.php?action=obtener_usuarios [QSA,L]
+
+# Fallback para otras rutas de API
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^api/(.*)$ php/config.php [QSA,L]

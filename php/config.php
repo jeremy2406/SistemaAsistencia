@@ -1,7 +1,13 @@
 <?php
-// config.php - Configuración mejorada de Supabase
+// config.php - Configuración mejorada con mejor manejo de errores
+// Limpiar buffer de salida para evitar caracteres extra
+ob_clean();
+ob_start();
+
+// Configuración de errores (solo para desarrollo)
+ini_set('display_errors', 0); // Cambiado a 0 para evitar que se muestren en JSON
+ini_set('log_errors', 1);
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
 
 class SupabaseClient {
     private $url;
@@ -118,13 +124,37 @@ class SupabaseClient {
     }
 }
 
-// Función para establecer headers CORS
+// Función para establecer headers CORS y limpiar salida
 function setCorsHeaders() {
+    // Limpiar cualquier salida previa
+    if (ob_get_level()) {
+        ob_clean();
+    }
+    
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE');
     header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
     header('Access-Control-Max-Age: 86400');
     header('Content-Type: application/json; charset=utf-8');
+}
+
+// Función para enviar respuesta JSON limpia
+function sendJsonResponse($data) {
+    // Asegurar que no hay salida previa
+    if (ob_get_level()) {
+        ob_clean();
+    }
+    
+    // Verificar que los datos se puedan serializar
+    $json = json_encode($data, JSON_UNESCAPED_UNICODE);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        $json = json_encode([
+            'error' => 'Error al codificar JSON: ' . json_last_error_msg()
+        ]);
+    }
+    
+    echo $json;
+    exit();
 }
 
 // registrar_asistencia.php - Versión mejorada
@@ -165,11 +195,10 @@ function registrarAsistencia() {
         $usuarios = $supabase->select('usuarios', '*', 'codigo_qr=eq.' . urlencode($codigo_qr));
         
         if (empty($usuarios)) {
-            echo json_encode([
+            sendJsonResponse([
                 'success' => false,
                 'mensaje' => 'Código QR no encontrado'
             ]);
-            exit;
         }
 
         $usuario = $usuarios[0];
@@ -185,11 +214,10 @@ function registrarAsistencia() {
 
         if (!empty($asistencia_existente)) {
             $hora_existente = date('H:i:s', strtotime($asistencia_existente[0]['hora_llegada']));
-            echo json_encode([
+            sendJsonResponse([
                 'success' => false,
                 'mensaje' => 'Ya registraste tu asistencia hoy a las ' . $hora_existente
             ]);
-            exit;
         }
 
         // Registrar asistencia
@@ -202,7 +230,7 @@ function registrarAsistencia() {
 
         $resultado = $supabase->insert('asistencias', $nueva_asistencia);
 
-        echo json_encode([
+        sendJsonResponse([
             'success' => true,
             'mensaje' => '¡Asistencia registrada exitosamente!',
             'datos' => [
@@ -215,7 +243,7 @@ function registrarAsistencia() {
 
     } catch (Exception $e) {
         error_log('Error en registrar_asistencia: ' . $e->getMessage());
-        echo json_encode([
+        sendJsonResponse([
             'success' => false,
             'mensaje' => 'Error interno del servidor: ' . $e->getMessage()
         ]);
@@ -244,8 +272,7 @@ function obtenerAsistencias() {
         );
 
         if (empty($asistencias)) {
-            echo json_encode([]);
-            exit;
+            sendJsonResponse([]);
         }
 
         // Formatear datos
@@ -263,12 +290,36 @@ function obtenerAsistencias() {
             ];
         }, $asistencias);
 
-        echo json_encode($resultado);
+        sendJsonResponse($resultado);
 
     } catch (Exception $e) {
         error_log('Error en obtener_asistencias: ' . $e->getMessage());
-        echo json_encode([
+        sendJsonResponse([
             'error' => 'Error al obtener datos: ' . $e->getMessage()
+        ]);
+    }
+}
+
+// obtener_usuarios.php - Nueva función para obtener usuarios
+function obtenerUsuarios() {
+    setCorsHeaders();
+
+    try {
+        $supabase = new SupabaseClient();
+        
+        // Obtener todos los usuarios ordenados por nombre
+        $usuarios = $supabase->select(
+            'usuarios', 
+            'id,nombre,apellido,ocupacion,codigo_qr',
+            'order=nombre.asc'
+        );
+
+        sendJsonResponse($usuarios);
+
+    } catch (Exception $e) {
+        error_log('Error en obtener_usuarios: ' . $e->getMessage());
+        sendJsonResponse([
+            'error' => 'Error al obtener usuarios: ' . $e->getMessage()
         ]);
     }
 }
@@ -289,29 +340,27 @@ function testConnection() {
         }
         
         if (!empty($missing_extensions)) {
-            echo json_encode([
+            sendJsonResponse([
                 'status' => 'error',
                 'message' => 'Extensiones PHP faltantes: ' . implode(', ', $missing_extensions)
             ]);
-            exit;
         }
 
         $supabase = new SupabaseClient();
         
         // Test básico de conexión
         if (!$supabase->testConnection()) {
-            echo json_encode([
+            sendJsonResponse([
                 'status' => 'error',
                 'message' => 'No se pudo conectar a Supabase'
             ]);
-            exit;
         }
 
         // Obtener estadísticas
         $usuarios = $supabase->select('usuarios', '*');
         $asistencias = $supabase->select('asistencias', '*');
         
-        echo json_encode([
+        sendJsonResponse([
             'status' => 'success',
             'message' => '✅ Conexión exitosa',
             'data' => [
@@ -326,39 +375,61 @@ function testConnection() {
         
     } catch (Exception $e) {
         error_log('Error en test: ' . $e->getMessage());
-        echo json_encode([
+        sendJsonResponse([
             'status' => 'error',
             'message' => 'Error: ' . $e->getMessage()
         ]);
     }
 }
 
-// Router principal
-$request_uri = $_SERVER['REQUEST_URI'] ?? '';
-$path_info = parse_url($request_uri, PHP_URL_PATH);
+// Router principal mejorado
+try {
+    $request_uri = $_SERVER['REQUEST_URI'] ?? '';
+    $path_info = parse_url($request_uri, PHP_URL_PATH);
+    $query_string = parse_url($request_uri, PHP_URL_QUERY);
+    parse_str($query_string ?? '', $query_params);
 
-// Determinar qué función ejecutar
-if (strpos($path_info, 'registrar_asistencia') !== false || 
-    (isset($_POST['action']) && $_POST['action'] === 'registrar_asistencia')) {
-    registrarAsistencia();
-} elseif (strpos($path_info, 'obtener_asistencias') !== false || 
-          (isset($_GET['action']) && $_GET['action'] === 'obtener_asistencias')) {
-    obtenerAsistencias();
-} elseif (strpos($path_info, 'test') !== false || 
-          (isset($_GET['action']) && $_GET['action'] === 'test')) {
-    testConnection();
-} else {
-    // Respuesta por defecto para debugging
+    // Determinar qué función ejecutar basado en la URL o parámetros
+    if (strpos($path_info, 'registrar_asistencia') !== false || 
+        (isset($query_params['action']) && $query_params['action'] === 'registrar_asistencia') ||
+        (isset($_POST['action']) && $_POST['action'] === 'registrar_asistencia')) {
+        registrarAsistencia();
+        
+    } elseif (strpos($path_info, 'obtener_asistencias') !== false || 
+              (isset($query_params['action']) && $query_params['action'] === 'obtener_asistencias')) {
+        obtenerAsistencias();
+        
+    } elseif (strpos($path_info, 'obtener_usuarios') !== false || 
+              (isset($query_params['action']) && $query_params['action'] === 'obtener_usuarios')) {
+        obtenerUsuarios();
+        
+    } elseif (strpos($path_info, 'test') !== false || 
+              (isset($query_params['action']) && $query_params['action'] === 'test')) {
+        testConnection();
+        
+    } else {
+        // Respuesta por defecto para debugging
+        setCorsHeaders();
+        sendJsonResponse([
+            'error' => 'Endpoint no encontrado',
+            'request_uri' => $request_uri,
+            'path_info' => $path_info,
+            'query_params' => $query_params,
+            'available_endpoints' => [
+                'test' => 'Para probar la conexión',
+                'registrar_asistencia' => 'Para registrar asistencia (POST)',
+                'obtener_asistencias' => 'Para obtener asistencias (GET)',
+                'obtener_usuarios' => 'Para obtener usuarios (GET)'
+            ]
+        ]);
+    }
+    
+} catch (Exception $e) {
+    error_log('Error en router principal: ' . $e->getMessage());
     setCorsHeaders();
-    echo json_encode([
-        'error' => 'Endpoint no encontrado',
-        'request_uri' => $request_uri,
-        'path_info' => $path_info,
-        'available_endpoints' => [
-            'test' => 'Para probar la conexión',
-            'registrar_asistencia' => 'Para registrar asistencia (POST)',
-            'obtener_asistencias' => 'Para obtener asistencias (GET)'
-        ]
+    sendJsonResponse([
+        'error' => 'Error interno del servidor',
+        'message' => $e->getMessage()
     ]);
 }
 ?>

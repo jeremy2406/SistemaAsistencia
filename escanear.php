@@ -1,5 +1,5 @@
-<?php include 'Componentes/header.php'; ?>
-<?php include 'Componentes/nav.php'; ?>
+<?php include 'Componentes/Header.php'; ?>
+<?php include 'Componentes/Nav.php'; ?>
 <div class="container mx-auto px-4 py-12 text-center">
   <h2 class="text-3xl font-bold mb-4">Escanea tu código QR</h2>
   <p class="mb-6">Utiliza la cámara para escanear tu código QR único y registrar tu asistencia.</p>
@@ -168,4 +168,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-<?php include 'Componentes/footer.php'; ?>
+<?php include 'Componentes/Footer.php'; ?>

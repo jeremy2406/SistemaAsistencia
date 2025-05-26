@@ -1,5 +1,5 @@
-<?php include 'Componentes/header.php'; ?>
-<?php include 'Componentes/nav.php'; ?>
+<?php include 'Componentes/Header.php'; ?>
+<?php include 'Componentes/Nav.php'; ?>
 
 <div class="container mx-auto p-4">
   <div class="max-w-4xl mx-auto">
@@ -658,4 +658,4 @@ async function generarQRExistente(codigoQR, nombre, apellido) {
 window.generarQRExistente = generarQRExistente;
 </script>
 
-<?php include 'Componentes/footer.php'; ?>
+<?php include 'Componentes/Footer.php'; ?>

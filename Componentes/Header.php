@@ -12,6 +12,17 @@
     body {
       font-family: 'Inter', sans-serif;
     }
+    
+    /* Colores personalizados para tema de perros */
+    .bg-dog-brown { background-color: #8B4513; }
+    .bg-dog-light-brown { background-color: #A0522D; }
+    .bg-dog-cream { background-color: #FDF5E6; }
+    .bg-dog-tan { background-color: #D2B48C; }
+    .text-dog-brown { color: #8B4513; }
+    .text-dog-dark-brown { color: #654321; }
+    .border-dog-brown { border-color: #8B4513; }
+    .hover\:bg-dog-light-brown:hover { background-color: #A0522D; }
+    .hover\:text-dog-brown:hover { color: #8B4513; }
   </style>
 </head>
-<body class="bg-gradient-to-br from-orange-50 to-yellow-50 text-gray-800 min-h-screen">
+<body class="bg-gradient-to-br from-yellow-50 to-orange-50 text-gray-800 min-h-screen">

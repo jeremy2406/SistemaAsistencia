@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: asistencia-qr
+    env: docker
+    plan: free
+    dockerfilePath: ./dockerfile
+    autoDeploy: true

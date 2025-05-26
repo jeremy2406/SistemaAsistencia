@@ -1,5 +1,5 @@
-<?php include 'componentes/header.php'; ?>
-<?php include 'componentes/nav.php'; ?>
+<?php include 'Componentes/header.php'; ?>
+<?php include 'Componentes/nav.php'; ?>
 
 <div class="container mx-auto p-4">
   <div class="flex justify-between items-center mb-6">

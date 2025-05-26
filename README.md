@@ -148,7 +148,7 @@ SistemaAsistencia/
 ### Estilos
 El sistema usa **Tailwind CSS** para los estilos. Puedes personalizar:
 - Colores en las clases CSS
-- Layout en los archivos de componentes
+- Layout en los archivos de Componentes
 - Mensajes en los archivos PHP
 
 ### Base de Datos

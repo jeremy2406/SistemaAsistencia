@@ -11,7 +11,7 @@
             <span class="text-2xl">🐕</span>
           </div>
           <div class="w-16 h-16 bg-gray-400 rounded-full flex items-center justify-center">
-            <span class="text-2xl">🐱</span>
+            <span class="text-2xl">🐶</span>
           </div>
           <div class="w-16 h-16 bg-amber-400 rounded-full flex items-center justify-center">
             <span class="text-2xl">🐩</span>
@@ -39,7 +39,7 @@
       <div class="group cursor-pointer">
         <div
           class="bg-gradient-to-br from-orange-200 to-orange-300 rounded-2xl p-8 h-64 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300">
-          <div class="text-6xl">🐕</div>
+          <img src="./assets/Golden.png" alt="Perro Golden Retriever" class="h-48 object-contain mx-auto">
         </div>
         <p class="text-center mt-4 font-semibold text-gray-700">Golden Retriever</p>
       </div>
@@ -47,7 +47,7 @@
       <div class="group cursor-pointer">
         <div
           class="bg-gradient-to-br from-amber-200 to-amber-300 rounded-2xl p-8 h-64 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300">
-          <div class="text-6xl">🐩</div>
+          <img src="./assets/Poodle.png" alt="Perro Poodle" class="h-60 object-contain mx-auto">
         </div>
         <p class="text-center mt-4 font-semibold text-gray-700">Poodle</p>
       </div>
@@ -55,7 +55,7 @@
       <div class="group cursor-pointer">
         <div
           class="bg-gradient-to-br from-yellow-200 to-yellow-300 rounded-2xl p-8 h-64 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300">
-          <div class="text-6xl">🐶</div>
+          <img src="./assets/Labrador.png" alt="Perro Labrador" class="h-60 object-contain mx-auto">
         </div>
         <p class="text-center mt-4 font-semibold text-gray-700">Labrador</p>
       </div>
@@ -63,7 +63,7 @@
       <div class="group cursor-pointer">
         <div
           class="bg-gradient-to-br from-red-200 to-red-300 rounded-2xl p-8 h-64 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300">
-          <div class="text-6xl">🐕‍🦺</div>
+         <img src="./assets/Pastor.png" alt="Perro Pastor Alemán" class="h-48 object-contain mx-auto">
         </div>
         <p class="text-center mt-4 font-semibold text-gray-700">Pastor Alemán</p>
       </div>
@@ -71,7 +71,7 @@
       <div class="group cursor-pointer">
         <div
           class="bg-gradient-to-br from-purple-200 to-purple-300 rounded-2xl p-8 h-64 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300">
-          <div class="text-6xl">🐕</div>
+          <img src="./assets/Buldog.png" alt="Perro Bulldog" class="h-60 object-contain mx-auto">
         </div>
         <p class="text-center mt-4 font-semibold text-gray-700">Bulldog</p>
       </div>
@@ -79,7 +79,7 @@
       <div class="group cursor-pointer">
         <div
           class="bg-gradient-to-br from-green-200 to-green-300 rounded-2xl p-8 h-64 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300">
-          <div class="text-6xl">🐶</div>
+          <img src="./assets/Chiuahua.png" alt="Perro Chihuahua" class="h-48 object-contain mx-auto">
         </div>
         <p class="text-center mt-4 font-semibold text-gray-700">Chihuahua</p>
       </div>

@@ -7,7 +7,7 @@
                     <div class="w-12 h-12 rounded-full flex items-center justify-center">
                        <img src="./assets/Logo.png" class="text-white text-xl font-bold" alt="Logo Chibi's House">
                     </div>
-                   <a href=""><span class="text-2xl font-bold text-warm-brown">Chibi's House</span></a>
+                   <a href="./index.php"><span class="text-2xl font-bold text-warm-brown">Chibi's House</span></a>
                 </div>
                 
                 <!-- Desktop Menu -->

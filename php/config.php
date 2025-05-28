@@ -15,8 +15,8 @@ class SupabaseClient {
     private $headers;
 
     public function __construct() {
-        $this->url = 'https://ftrfqvqaaandvmvhdirk.supabase.co';
-        $this->key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ0cmZxdnFhYWFuZHZtdmhkaXJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgyMTE0ODIsImV4cCI6MjA2Mzc4NzQ4Mn0.92EsJxnyxOgzuQuZV_BiaybWUelpxbQCZ-vyLFLPs_c';
+        $this->url = 'https://nlpfavavqxpwdodyonmi.supabase.co';
+        $this->key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5scGZhdmF2cXhwd2RvZHlvbm1pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg0MDIyODksImV4cCI6MjA2Mzk3ODI4OX0.aCDdbgJ-2gXyTro5-kVf-YkiLqWHYLOXuB1k9Ss4CBI';
         
         $this->headers = [
             'Content-Type: application/json',
